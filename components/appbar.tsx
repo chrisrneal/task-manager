@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { useAuth } from '@/components/AuthContext';
+import { supabase } from '@/utils/supabaseClient';
 
 const links = [
 	{ label: 'Story', href: '/story' },
@@ -7,7 +9,13 @@ const links = [
 ]
 
 const Appbar = () => {
-	const router = useRouter()
+	const { user } = useAuth();
+	const router = useRouter();
+
+	const handleLogout = async () => {
+		await supabase.auth.signOut();
+		router.replace('/login');
+	};
 
 	return (
 		<div className='fixed top-0 left-0 z-20 w-full bg-zinc-900 pt-safe'>
@@ -43,7 +51,15 @@ const Appbar = () => {
 								backgroundImage:
 									'url(https://images.unsplash.com/photo-1612480797665-c96d261eae09?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80)',
 							}}
-						/>
+							/>
+							{user && (
+								<button
+									onClick={handleLogout}
+									className='text-sm px-3 py-1 rounded bg-zinc-800 text-white hover:bg-zinc-700'
+								>
+									Logout
+								</button>
+							)}
 					</nav>
 				</div>
 			</header>
