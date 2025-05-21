@@ -123,8 +123,16 @@ const Projects = () => {
         })
       });
       
+      // Attempt to get detailed error information if available
+      let errorDetails = '';
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        try {
+          const errorResponse = await response.json();
+          errorDetails = errorResponse.details || `Error: ${response.status}`;
+          throw new Error(errorDetails);
+        } catch (parseError) {
+          throw new Error(`Error: ${response.status}`);
+        }
       }
       
       const result = await response.json();

@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/utils/supabaseClient';
+import { supabaseAdmin } from '@/utils/supabaseAdmin';
 import { v4 as uuidv4 } from 'uuid';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -33,7 +34,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     // Handle GET request - Get a single project
     if (method === 'GET') {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('projects')
         .select('*')
         .eq('id', id)
@@ -68,7 +69,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       }
 
       // First check if project exists and belongs to user
-      const { data: existingProject, error: findError } = await supabase
+      const { data: existingProject, error: findError } = await supabaseAdmin
         .from('projects')
         .select('*')
         .eq('id', id)
@@ -86,7 +87,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         throw findError;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('projects')
         .update({ 
           name, 
@@ -106,7 +107,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Handle DELETE request - Delete a project
     if (method === 'DELETE') {
       // First check if project exists and belongs to user
-      const { data: existingProject, error: findError } = await supabase
+      const { data: existingProject, error: findError } = await supabaseAdmin
         .from('projects')
         .select('*')
         .eq('id', id)
@@ -124,7 +125,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         throw findError;
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('projects')
         .delete()
         .eq('id', id)
