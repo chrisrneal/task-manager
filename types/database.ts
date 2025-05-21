@@ -10,6 +10,32 @@ export interface Project {
   user_id: string;
 }
 
+export interface Task {
+  id: string;
+  name: string;
+  description: string | null;
+  project_id: string;
+  owner_id: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Subtask {
+  id: string;
+  name: string;
+  description: string | null;
+  task_id: string;
+  owner_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Database {
   projects: Project[];
+  tasks: Task[];
+  subtasks: Subtask[];
 }
