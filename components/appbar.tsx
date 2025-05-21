@@ -6,6 +6,7 @@ import { supabase } from '@/utils/supabaseClient';
 const links = [
 	{ label: 'Story', href: '/story' },
 	{ label: 'Recipes', href: '/recipes' },
+	{ label: 'Projects', href: '/projects' },
 ]
 
 const Appbar = () => {

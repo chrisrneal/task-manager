@@ -87,4 +87,22 @@ const links = [
 			</svg>
 		),
 	},
+	{
+		label: 'Projects',
+		href: '/projects',
+		icon: (
+			<svg
+				viewBox='0 0 15 15'
+				fill='none'
+				xmlns='http://www.w3.org/2000/svg'
+				width='18'
+				height='18'
+			>
+				<path
+					d='M1.5 1h12V0h-12v1zm0 3h12V3h-12v1zm6 3h6V6h-6v1zm6 3h-6v1h6v-1zm-6 3h6v-1h-6v1zm-1-6h-5v5h5V7zm-1 4h-3V8h3v3z'
+					fill='currentColor'
+				/>
+			</svg>
+		),
+	},
 ]
