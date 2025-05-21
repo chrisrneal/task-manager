@@ -38,18 +38,29 @@ const Projects = () => {
         const traceId = uuidv4();
         console.log(`[${traceId}] Fetching projects for user: ${user.id}`);
         
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .order('created_at', { ascending: false });
+        // Get the session token
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
         
-        if (error) {
-          console.error(`[${traceId}] Error fetching projects: ${error.message}`);
-          throw error;
+        if (!token) {
+          throw new Error('No authentication token available');
         }
         
-        console.log(`[${traceId}] Fetched ${data.length} projects successfully`);
-        setProjects(data || []);
+        const response = await fetch('/api/projects', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log(`[${traceId}] Fetched ${result.data.length} projects successfully`);
+        setProjects(result.data || []);
       } catch (err: any) {
         setError('Failed to load projects');
         console.error('Error fetching projects:', err.message);
@@ -92,31 +103,37 @@ const Projects = () => {
       
       setProjects(prev => [newProject as Project, ...prev]);
       
-      // Then save to the database
-      const { data, error } = await supabase
-        .from('projects')
-        .insert([
-          { 
-            name, 
-            description: description || null, 
-            user_id: user.id 
-          }
-        ])
-        .select();
+      // Then save to the database via API
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
       
-      if (error) {
-        console.error(`[${traceId}] Error creating project: ${error.message}`);
-        // Remove the optimistic update
-        setProjects(prev => prev.filter(p => p.id !== newProject.id));
-        throw error;
+      if (!token) {
+        throw new Error('No authentication token available');
       }
       
-      console.log(`[${traceId}] Project created successfully: ${data[0].id}`);
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          name,
+          description: description || null
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log(`[${traceId}] Project created successfully: ${result.data.id}`);
       
       // Replace the temporary item with the real one
       setProjects(prev => 
         prev.map(p => 
-          p.id === newProject.id ? data[0] : p
+          p.id === newProject.id ? result.data : p
         )
       );
       
@@ -124,6 +141,8 @@ const Projects = () => {
       setName('');
       setDescription('');
     } catch (err: any) {
+      // Remove the optimistic update
+      setProjects(prev => prev.filter(p => p.id !== `temp-${Date.now()}`.substring(0, 13)));
       setError('Failed to create project. Please try again.');
       console.error('Error creating project:', err.message);
     } finally {
