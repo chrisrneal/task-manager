@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/utils/supabaseClient';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
 import { v4 as uuidv4 } from 'uuid';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -57,10 +56,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      console.log(`[${traceId}] Creating project with user_id: ${user.id}`);
-      
-      // Use admin client to bypass RLS policies
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('projects')
         .insert([
           { 
@@ -71,20 +67,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         ])
         .select();
 
-      if (error) {
-        console.error(`[${traceId}] Supabase error: ${error.message}, ${error.code}, ${error.details}`);
-        
-        // Special handling for RLS policy violation
-        if (error.code === '42501' || error.message.includes('policy')) {
-          return res.status(403).json({
-            error: 'Permission denied. Cannot create project due to security policy.',
-            details: error.message,
-            traceId
-          });
-        }
-        
-        throw error;
-      }
+      if (error) throw error;
       
       console.log(`[${traceId}] POST /api/projects - Success, created project: ${data[0].id}`);
       return res.status(201).json({ data: data[0], traceId });
@@ -98,8 +81,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     });
   } catch (error: any) {
     console.error(`[${traceId}] Error: ${error.message}`);
-    console.error(`[${traceId}] Stack trace: ${error.stack}`);
-    
     return res.status(500).json({ 
       error: 'Internal server error',
       details: error.message,
