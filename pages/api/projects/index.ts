@@ -10,7 +10,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   console.log(`[${traceId}] ${method} /api/projects - Request received`);
 
   // Extract user token from request
-  const token = req.headers.authorization?.split(' ')[1];
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
+
   if (!token) {
     console.log(`[${traceId}] Error: No authorization token provided`);
     return res.status(401).json({ 
@@ -38,8 +40,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
+      if (error) {
+        console.error(`[${traceId}] Error fetching projects: ${error.message}`);
+        return res.status(500).json({ error: error.message, traceId });
+      }
+
       console.log(`[${traceId}] GET /api/projects - Success, returned ${data.length} projects`);
       return res.status(200).json({ data, traceId });
     }
@@ -47,11 +52,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Handle POST request - Create a new project
     if (method === 'POST') {
       const { name, description } = req.body;
-      
+
       if (!name) {
         console.log(`[${traceId}] Error: Missing required field 'name'`);
         return res.status(400).json({ 
-          error: 'Name is required',
+          error: 'Project name is required',
           traceId
         });
       }
@@ -65,16 +70,21 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             user_id: user.id 
           }
         ])
-        .select();
+        .select()
+        .single();
 
-      if (error) throw error;
-      
-      console.log(`[${traceId}] POST /api/projects - Success, created project: ${data[0].id}`);
-      return res.status(201).json({ data: data[0], traceId });
+      if (error) {
+        console.error(`[${traceId}] Error inserting project: ${error.message}`);
+        return res.status(500).json({ error: error.message, traceId });
+      }
+
+      console.log(`[${traceId}] POST /api/projects - Success, created project: ${data.id}`);
+      return res.status(201).json({ data, traceId });
     }
     
     // Handle unsupported methods
     console.log(`[${traceId}] Error: Method ${method} not allowed`);
+    res.setHeader('Allow', ['GET', 'POST']);
     return res.status(405).json({ 
       error: `Method ${method} not allowed`,
       traceId
