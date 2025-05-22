@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import Page from '@/components/page';
 import Section from '@/components/section';
 import { useAuth } from '@/components/AuthContext';
@@ -211,7 +212,11 @@ const Projects = () => {
           ) : (
             <div className='space-y-3'>
               {projects.map((project) => (
-                <div key={project.id} className='border rounded-md p-4 dark:border-zinc-700'>
+                <Link 
+                  key={project.id} 
+                  href={`/projects/${project.id}`}
+                  className='block border rounded-md p-4 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500 cursor-pointer'
+                >
                   <h4 className='font-medium'>{project.name}</h4>
                   {project.description && (
                     <p className='text-zinc-600 dark:text-zinc-400 text-sm mt-1'>{project.description}</p>
@@ -219,7 +224,7 @@ const Projects = () => {
                   <p className='text-zinc-500 dark:text-zinc-500 text-xs mt-2'>
                     Created: {new Date(project.created_at).toLocaleDateString()}
                   </p>
-                </div>
+                </Link>
               ))}
             </div>
           )}

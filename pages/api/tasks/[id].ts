@@ -11,11 +11,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   
   // Generate trace ID for request logging
   const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/projects/${id} - Request received`);
+  console.log(`[${traceId}] ${method} /api/tasks/${id} - Request received`);
 
   // Extract user token from request
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
+
   if (!token) {
     console.log(`[${traceId}] Error: No authorization token provided`);
     return res.status(401).json({ 
@@ -26,7 +27,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Create a Supabase client with the user's token for RLS
   const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: 'Bearer ' + token } }
+    global: { headers: { Authorization: `******` } }
   });
 
   // Verify the user session
@@ -40,33 +41,33 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   try {
-    // Handle GET request - Get a single project
+    // Handle GET request - Get a single task
     if (method === 'GET') {
       const { data, error } = await supabase
-        .from('projects')
+        .from('tasks')
         .select('*')
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('owner_id', user.id)
         .single();
 
       if (error) {
         if (error.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Project not found - ${id}`);
+          console.log(`[${traceId}] Error: Task not found - ${id}`);
           return res.status(404).json({ 
-            error: 'Project not found',
+            error: 'Task not found',
             traceId
           });
         }
         throw error;
       }
       
-      console.log(`[${traceId}] GET /api/projects/${id} - Success`);
+      console.log(`[${traceId}] GET /api/tasks/${id} - Success`);
       return res.status(200).json({ data, traceId });
     }
     
-    // Handle PUT request - Update a project
+    // Handle PUT request - Update a task
     if (method === 'PUT') {
-      const { name, description } = req.body;
+      const { name, description, status, priority, due_date } = req.body;
       
       if (!name) {
         console.log(`[${traceId}] Error: Missing required field 'name'`);
@@ -76,19 +77,19 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // First check if project exists and belongs to user
-      const { data: existingProject, error: findError } = await supabase
-        .from('projects')
+      // First check if task exists and belongs to user
+      const { data: existingTask, error: findError } = await supabase
+        .from('tasks')
         .select('*')
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('owner_id', user.id)
         .single();
 
       if (findError) {
         if (findError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Project not found or access denied - ${id}`);
+          console.log(`[${traceId}] Error: Task not found or access denied - ${id}`);
           return res.status(404).json({ 
-            error: 'Project not found or access denied',
+            error: 'Task not found or access denied',
             traceId
           });
         }
@@ -96,37 +97,40 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       }
 
       const { data, error } = await supabase
-        .from('projects')
+        .from('tasks')
         .update({ 
           name, 
           description: description || null,
+          status: status || existingTask.status,
+          priority: priority || existingTask.priority,
+          due_date: due_date || existingTask.due_date,
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('owner_id', user.id)
         .select();
 
       if (error) throw error;
       
-      console.log(`[${traceId}] PUT /api/projects/${id} - Success, updated project`);
+      console.log(`[${traceId}] PUT /api/tasks/${id} - Success, updated task`);
       return res.status(200).json({ data: data[0], traceId });
     }
     
-    // Handle DELETE request - Delete a project
+    // Handle DELETE request - Delete a task
     if (method === 'DELETE') {
-      // First check if project exists and belongs to user
-      const { data: existingProject, error: findError } = await supabase
-        .from('projects')
+      // First check if task exists and belongs to user
+      const { data: existingTask, error: findError } = await supabase
+        .from('tasks')
         .select('*')
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('owner_id', user.id)
         .single();
 
       if (findError) {
         if (findError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Project not found or access denied - ${id}`);
+          console.log(`[${traceId}] Error: Task not found or access denied - ${id}`);
           return res.status(404).json({ 
-            error: 'Project not found or access denied',
+            error: 'Task not found or access denied',
             traceId
           });
         }
@@ -134,14 +138,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       }
 
       const { error } = await supabase
-        .from('projects')
+        .from('tasks')
         .delete()
         .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('owner_id', user.id);
 
       if (error) throw error;
       
-      console.log(`[${traceId}] DELETE /api/projects/${id} - Success, deleted project`);
+      console.log(`[${traceId}] DELETE /api/tasks/${id} - Success, deleted task`);
       return res.status(200).json({ success: true, traceId });
     }
     
