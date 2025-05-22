@@ -1,0 +1,53 @@
+name: Check Documentation Updates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check for code and doc changes
+        id: changes
+        run: |
+          # Get the files changed in this PR
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > changed_files.txt
+          
+          # Check if code files were changed (excluding docs, tests, config files)
+          grep -E '\.(js|jsx|ts|tsx)$' changed_files.txt | grep -v '__tests__' | grep -v '\.config\.' > code_changes.txt || true
+          
+          # Check if docs were changed
+          grep -E '\.(md|mdx)$' changed_files.txt > doc_changes.txt || true
+          
+          # If there are code changes but no doc changes, output a warning
+          if [ -s code_changes.txt ] && [ ! -s doc_changes.txt ]; then
+            echo "::warning::Code changes detected without corresponding documentation updates. Consider updating README.md or other documentation files."
+            echo "code_changed=true" >> $GITHUB_OUTPUT
+            echo "docs_changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "code_changed=$([ -s code_changes.txt ] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+            echo "docs_changed=$([ -s doc_changes.txt ] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+          fi
+          
+          # Summary
+          echo "### Documentation Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Code files changed: $([ -s code_changes.txt ] && echo 'Yes' || echo 'No')" >> $GITHUB_STEP_SUMMARY
+          echo "- Documentation files changed: $([ -s doc_changes.txt ] && echo 'Yes' || echo 'No')" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -s code_changes.txt ] && [ ! -s doc_changes.txt ]; then
+            echo "⚠️ **Warning**: Code changes detected without corresponding documentation updates." >> $GITHUB_STEP_SUMMARY
+            echo "Consider updating README.md or other documentation files." >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Check linting and tests
+        if: steps.changes.outputs.code_changed == 'true'
+        run: |
+          npm ci
+          npm run lint
+          npm run test -- --ci

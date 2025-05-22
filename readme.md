@@ -43,6 +43,14 @@ Fluffless doesn't mean "start with nothing". The goal of this template is to be 
 
 - [next-themes](https://github.com/pacocoursey/next-themes) or similar for low stress theming
 
+## AI Automation
+
+This repository is configured for GitHub Copilot to help maintain documentation and code consistency. When code changes are made:
+
+- Copilot may suggest or open PRs that update documentation to reflect code changes
+- All PRs will be reviewed through the normal process
+- Copilot follows the existing code standards and styles in the repository
+
 ## Gallery
 
 ### Desktop
