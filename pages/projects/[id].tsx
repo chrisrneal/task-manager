@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Page from '@/components/page';
 import Section from '@/components/section';
@@ -43,6 +43,43 @@ const ProjectDetail = () => {
       router.replace('/login');
     }
   }, [user, loading, router]);
+
+  // Fetch tasks for the project
+  const fetchTasks = React.useCallback(async () => {
+    if (!user || !projectId) return;
+
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Fetching tasks for project: ${projectId}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      const response = await fetch(`/api/tasks?projectId=${projectId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log(`[${traceId}] Fetched ${result.data.length} tasks successfully`);
+      setTasks(result.data || []);
+    } catch (err: any) {
+      console.error('Error fetching tasks:', err.message);
+      setError('Failed to load tasks');
+    }
+  }, [user, projectId]);
 
   // Fetch project details
   useEffect(() => {
@@ -100,7 +137,7 @@ const ProjectDetail = () => {
     if (user && projectId) {
       fetchProject();
     }
-  }, [user, projectId]);
+  }, [user, projectId, fetchTasks]);
 
   // Subscribe to realtime updates for tasks
   useEffect(() => {
@@ -124,12 +161,12 @@ const ProjectDetail = () => {
           case 'INSERT':
             // Only add if it's not already in the list (prevent duplication with optimistic updates)
             if (!tasks.some(t => t.id === payload.new.id)) {
-              setTasks(prev => [payload.new, ...prev]);
+              setTasks(prev => [payload.new as Task, ...prev]);
             }
             break;
           case 'UPDATE':
             setTasks(prev => prev.map(t => 
-              t.id === payload.new.id ? payload.new : t
+              t.id === payload.new.id ? payload.new as Task : t
             ));
             break;
           case 'DELETE':
@@ -144,43 +181,6 @@ const ProjectDetail = () => {
       supabase.removeChannel(subscription);
     };
   }, [user, projectId, tasks]);
-
-  // Fetch tasks for the project
-  const fetchTasks = async () => {
-    if (!user || !projectId) return;
-
-    try {
-      const traceId = uuidv4();
-      console.log(`[${traceId}] Fetching tasks for project: ${projectId}`);
-      
-      // Get the session token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
-      const response = await fetch(`/api/tasks?projectId=${projectId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log(`[${traceId}] Fetched ${result.data.length} tasks successfully`);
-      setTasks(result.data || []);
-    } catch (err: any) {
-      console.error('Error fetching tasks:', err.message);
-      setError('Failed to load tasks');
-    }
-  };
 
   // Handle opening the task modal for creating a new task
   const handleAddTask = () => {
@@ -453,7 +453,7 @@ const ProjectDetail = () => {
               Project Not Found
             </h2>
             <p className="text-zinc-600 dark:text-zinc-400 mb-6">
-              The project you're looking for doesn't exist or you don't have access to it.
+              The project you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.
             </p>
             <button
               onClick={() => router.push('/projects')}
