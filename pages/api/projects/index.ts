@@ -1,6 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '@/utils/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
@@ -21,8 +24,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     });
   }
 
+  // Create a Supabase client with the user's token for RLS
+  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+
   // Verify the user session
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
     console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
     return res.status(401).json({ 
@@ -37,7 +45,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -53,6 +60,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (method === 'POST') {
       const { name, description } = req.body;
 
+      console.log(`[${traceId}] POST body:`, req.body);
+      console.log(`[${traceId}] Auth user id:`, user.id);
+
       if (!name) {
         console.log(`[${traceId}] Error: Missing required field 'name'`);
         return res.status(400).json({ 
@@ -61,21 +71,24 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
+      const insertPayload = {
+        name,
+        description: description || null,
+        user_id: user.id
+      };
+      console.log(`[${traceId}] Insert payload:`, insertPayload);
+
       const { data, error } = await supabase
         .from('projects')
         .insert([
-          { 
-            name, 
-            description: description || null, 
-            user_id: user.id 
-          }
+          insertPayload
         ])
         .select()
         .single();
 
       if (error) {
-        console.error(`[${traceId}] Error inserting project: ${error.message}`);
-        return res.status(500).json({ error: error.message, traceId });
+        console.error(`[${traceId}] Error inserting project:`, error);
+        return res.status(500).json({ error: error.message, details: error.details, traceId });
       }
 
       console.log(`[${traceId}] POST /api/projects - Success, created project: ${data.id}`);
