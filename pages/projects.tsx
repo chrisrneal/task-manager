@@ -211,7 +211,11 @@ const Projects = () => {
           ) : (
             <div className='space-y-3'>
               {projects.map((project) => (
-                <div key={project.id} className='border rounded-md p-4 dark:border-zinc-700'>
+                <div 
+                  key={project.id} 
+                  className='border rounded-md p-4 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500 cursor-pointer'
+                  onClick={() => router.push(`/projects/${project.id}`)}
+                >
                   <h4 className='font-medium'>{project.name}</h4>
                   {project.description && (
                     <p className='text-zinc-600 dark:text-zinc-400 text-sm mt-1'>{project.description}</p>
