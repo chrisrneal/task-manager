@@ -102,6 +102,49 @@ const ProjectDetail = () => {
     }
   }, [user, projectId]);
 
+  // Subscribe to realtime updates for tasks
+  useEffect(() => {
+    if (!user || !projectId) return;
+    
+    console.log('Setting up realtime subscription for tasks...');
+    
+    // Subscribe to task changes
+    const subscription = supabase
+      .channel(`tasks:project_id=eq.${projectId}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'tasks',
+        filter: `project_id=eq.${projectId}`
+      }, (payload) => {
+        console.log('Realtime task update:', payload);
+        
+        // Handle different events
+        switch (payload.eventType) {
+          case 'INSERT':
+            // Only add if it's not already in the list (prevent duplication with optimistic updates)
+            if (!tasks.some(t => t.id === payload.new.id)) {
+              setTasks(prev => [payload.new, ...prev]);
+            }
+            break;
+          case 'UPDATE':
+            setTasks(prev => prev.map(t => 
+              t.id === payload.new.id ? payload.new : t
+            ));
+            break;
+          case 'DELETE':
+            setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+            break;
+        }
+      })
+      .subscribe();
+    
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [user, projectId, tasks]);
+
   // Fetch tasks for the project
   const fetchTasks = async () => {
     if (!user || !projectId) return;
