@@ -1,0 +1,11 @@
+agent:
+  # Copilot infers primary languages, so keep this list minimal
+  included_paths: "<auto-detect>"
+  standards: "<auto-detect>"
+  tasks:
+    update-readme: true          # Flag tells Copilot to sync docs
+    obey-repo-standards: true    # Lint/format/test before commit
+
+# Note: <auto-detect> placeholders will be resolved by Copilot at runtime
+# Copilot will scan the repository structure and detect language standards
+# based on configuration files like .eslintrc, prettier.json, etc.
