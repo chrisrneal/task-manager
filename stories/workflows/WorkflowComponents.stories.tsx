@@ -5,6 +5,7 @@ import WorkflowBuilder from '@/components/workflows/WorkflowBuilder';
 import TaskTypeForm from '@/components/workflows/TaskTypeForm';
 import WorkflowGraphEditor from '@/components/workflows/WorkflowGraphEditor';
 import TransitionListSidebar from '@/components/workflows/TransitionListSidebar';
+import { WorkflowTransition } from '@/types/database';
 
 const meta: Meta = {
   title: 'Workflows/Workflow Components',
@@ -134,7 +135,7 @@ export const TaskTypes: StoryObj = {
 export const TransitionEditor: StoryObj = {
   render: () => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const [transitions, setTransitions] = useState(mockTransitions);
+    const [transitions, setTransitions] = useState<WorkflowTransition[]>(mockTransitions);
 
     const handleCreateTransition = (fromStateId: string | null, toStateId: string) => {
       // Check for duplicates
@@ -143,7 +144,7 @@ export const TransitionEditor: StoryObj = {
         return;
       }
       
-      const newTransition = {
+      const newTransition: WorkflowTransition = {
         workflow_id: 'w1',
         from_state: fromStateId,
         to_state: toStateId
