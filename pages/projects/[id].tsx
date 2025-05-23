@@ -7,10 +7,10 @@ import Page from '@/components/page';
 import Section from '@/components/section';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import { Project, Task } from '@/types/database';
+import { Project, Task, ProjectState, TaskType, Workflow, WorkflowStep } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 
-// Task statuses for organization
+// Task statuses for organization (legacy, kept for fallback)
 const TASK_STATUSES = {
   TODO: 'todo',
   IN_PROGRESS: 'in_progress',
@@ -27,6 +27,12 @@ const ProjectDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Workflow related state
+  const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [states, setStates] = useState<ProjectState[]>([]);
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
+  
   // Task form state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskFormMode, setTaskFormMode] = useState<'create' | 'edit'>('create');
@@ -36,6 +42,8 @@ const ProjectDetail = () => {
   const [taskStatus, setTaskStatus] = useState(TASK_STATUSES.TODO);
   const [taskPriority, setTaskPriority] = useState('medium');
   const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskTypeId, setTaskTypeId] = useState<string | null>(null);
+  const [taskStateId, setTaskStateId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Auth protection
@@ -44,6 +52,135 @@ const ProjectDetail = () => {
       router.replace('/login');
     }
   }, [user, loading, router]);
+
+  // Fetch project workflow data (task types, workflows, states)
+  const fetchProjectWorkflowData = React.useCallback(async () => {
+    if (!user || !projectId) return;
+
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Fetching workflow data for project: ${projectId}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Fetch task types for this project
+      const { data: taskTypesData, error: taskTypesError } = await supabase
+        .from('task_types')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (taskTypesError) throw taskTypesError;
+      
+      setTaskTypes(taskTypesData || []);
+      
+      // Fetch workflows for this project
+      const { data: workflowsData, error: workflowsError } = await supabase
+        .from('workflows')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (workflowsError) throw workflowsError;
+      
+      setWorkflows(workflowsData || []);
+      
+      // Fetch project states
+      const { data: statesData, error: statesError } = await supabase
+        .from('project_states')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('position');
+
+      if (statesError) throw statesError;
+      
+      setStates(statesData || []);
+      
+      // Fetch workflow steps
+      if (workflowsData && workflowsData.length > 0) {
+        const workflowIds = workflowsData.map(w => w.id);
+        
+        const { data: stepsData, error: stepsError } = await supabase
+          .from('workflow_steps')
+          .select('*')
+          .in('workflow_id', workflowIds)
+          .order('step_order');
+          
+        if (stepsError) throw stepsError;
+        
+        setWorkflowSteps(stepsData || []);
+      }
+      
+      console.log(`[${traceId}] Workflow data fetched successfully`);
+    } catch (err: any) {
+      console.error('Error fetching workflow data:', err.message);
+      setError('Failed to load workflow data');
+    }
+  }, [user, projectId, supabase]);
+
+  // Get states for a specific workflow
+  const getWorkflowStates = (workflowId: string): ProjectState[] => {
+    const steps = workflowSteps.filter(step => step.workflow_id === workflowId)
+      .sort((a, b) => a.step_order - b.step_order);
+    
+    return steps.map(step => {
+      const state = states.find(s => s.id === step.state_id);
+      return state!;
+    }).filter(Boolean);
+  };
+
+  // Get the workflow for a specific task type
+  const getTaskTypeWorkflow = (taskTypeId: string | null): Workflow | null => {
+    if (!taskTypeId) return null;
+    
+    const taskType = taskTypes.find(tt => tt.id === taskTypeId);
+    if (!taskType) return null;
+    
+    return workflows.find(w => w.id === taskType.workflow_id) || null;
+  };
+
+  // Get the first state for a workflow
+  const getFirstWorkflowState = (workflowId: string): ProjectState | null => {
+    const workflowStates = getWorkflowStates(workflowId);
+    return workflowStates.length > 0 ? workflowStates[0] : null;
+  };
+
+  // Get the next valid states for a task
+  const getNextValidStates = (task: Task): ProjectState[] => {
+    if (!task.task_type_id) return states;
+    
+    const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
+    if (!taskType) return states;
+    
+    const workflow = workflows.find(w => w.id === taskType.workflow_id);
+    if (!workflow) return states;
+    
+    const workflowStates = getWorkflowStates(workflow.id);
+    
+    // If task doesn't have a state, first state is valid
+    if (!task.state_id) {
+      const firstState = workflowStates.length > 0 ? [workflowStates[0]] : [];
+      return firstState;
+    }
+    
+    // Find current state's position in workflow
+    const currentStateIndex = workflowStates.findIndex(s => s.id === task.state_id);
+    if (currentStateIndex === -1) return workflowStates;
+    
+    // Next state is the one that follows in the workflow
+    // Allow also staying in current state
+    const validStates = [workflowStates[currentStateIndex]];
+    
+    if (currentStateIndex < workflowStates.length - 1) {
+      validStates.push(workflowStates[currentStateIndex + 1]);
+    }
+    
+    return validStates;
+  };
 
   // Fetch tasks for the project
   const fetchTasks = React.useCallback(async () => {
@@ -181,7 +318,14 @@ const ProjectDetail = () => {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [user, projectId, tasks]);
+  }, [user, projectId, tasks, supabase]);
+
+  // Fetch workflow data when the project is loaded
+  useEffect(() => {
+    if (user && projectId && project) {
+      fetchProjectWorkflowData();
+    }
+  }, [user, projectId, project, fetchProjectWorkflowData]);
 
   // Handle opening the task modal for creating a new task
   const handleAddTask = () => {
@@ -192,6 +336,8 @@ const ProjectDetail = () => {
     setTaskStatus(TASK_STATUSES.TODO);
     setTaskPriority('medium');
     setTaskDueDate('');
+    setTaskTypeId(null);
+    setTaskStateId(null);
     setIsTaskModalOpen(true);
   };
 
@@ -204,7 +350,23 @@ const ProjectDetail = () => {
     setTaskStatus(task.status);
     setTaskPriority(task.priority);
     setTaskDueDate(task.due_date || '');
+    setTaskTypeId(task.task_type_id);
+    setTaskStateId(task.state_id);
     setIsTaskModalOpen(true);
+  };
+
+  // Handle change of task type
+  const handleTaskTypeChange = (newTaskTypeId: string) => {
+    setTaskTypeId(newTaskTypeId);
+    
+    // When task type changes, reset the state to the first state of the workflow
+    const taskType = taskTypes.find(tt => tt.id === newTaskTypeId);
+    if (taskType) {
+      const firstState = getFirstWorkflowState(taskType.workflow_id);
+      setTaskStateId(firstState?.id || null);
+    } else {
+      setTaskStateId(null);
+    }
   };
 
   // Handle form submission for creating/editing a task
@@ -246,8 +408,8 @@ const ProjectDetail = () => {
         due_date: taskDueDate || null,
         created_at: isEditing ? currentTask!.created_at : new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        task_type_id: isEditing ? currentTask!.task_type_id : null,
-        state_id: isEditing ? currentTask!.state_id : null
+        task_type_id: taskTypeId,
+        state_id: taskStateId
       };
       
       if (isEditing) {
@@ -274,7 +436,9 @@ const ProjectDetail = () => {
           project_id: projectId,
           status: taskStatus,
           priority: taskPriority,
-          due_date: taskDueDate || null
+          due_date: taskDueDate || null,
+          task_type_id: taskTypeId,
+          state_id: taskStateId
         })
       });
       
@@ -297,6 +461,8 @@ const ProjectDetail = () => {
       setTaskStatus(TASK_STATUSES.TODO);
       setTaskPriority('medium');
       setTaskDueDate('');
+      setTaskTypeId(null);
+      setTaskStateId(null);
       setCurrentTask(null);
     } catch (err: any) {
       // Revert the optimistic update
@@ -425,12 +591,52 @@ const ProjectDetail = () => {
     }
   };
 
-  // Group tasks by status
-  const groupedTasks = {
-    [TASK_STATUSES.TODO]: tasks.filter(task => task.status === TASK_STATUSES.TODO),
-    [TASK_STATUSES.IN_PROGRESS]: tasks.filter(task => task.status === TASK_STATUSES.IN_PROGRESS),
-    [TASK_STATUSES.DONE]: tasks.filter(task => task.status === TASK_STATUSES.DONE)
+  // Group tasks by state
+  const groupTasksByState = () => {
+    // If no workflow data is available yet, use legacy status grouping
+    if (states.length === 0) {
+      return {
+        [TASK_STATUSES.TODO]: tasks.filter(task => task.status === TASK_STATUSES.TODO),
+        [TASK_STATUSES.IN_PROGRESS]: tasks.filter(task => task.status === TASK_STATUSES.IN_PROGRESS),
+        [TASK_STATUSES.DONE]: tasks.filter(task => task.status === TASK_STATUSES.DONE)
+      };
+    }
+    
+    // Group by state_id
+    const grouped: Record<string, Task[]> = {};
+    
+    // Initialize all states with empty arrays
+    states.forEach(state => {
+      grouped[state.id] = [];
+    });
+    
+    // Add tasks to their respective state groups
+    tasks.forEach(task => {
+      if (task.state_id && grouped[task.state_id]) {
+        grouped[task.state_id].push(task);
+      } else {
+        // For tasks without a state, add to first state of its workflow
+        // or keep in a separate group for tasks without a workflow
+        if (task.task_type_id) {
+          const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
+          if (taskType) {
+            const firstState = getFirstWorkflowState(taskType.workflow_id);
+            if (firstState) {
+              if (!grouped[firstState.id]) {
+                grouped[firstState.id] = [];
+              }
+              grouped[firstState.id].push(task);
+            }
+          }
+        }
+      }
+    });
+    
+    return grouped;
   };
+
+  // Task groups by state
+  const groupedTasks = groupTasksByState();
 
   // Loading and not found states
   if (loading || !user) return null;
@@ -515,169 +721,233 @@ const ProjectDetail = () => {
 
           {/* Task List */}
           <div className="space-y-6">
-            {/* To Do Tasks */}
-            <div>
-              <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                To Do ({groupedTasks[TASK_STATUSES.TODO].length})
-              </h4>
-              {groupedTasks[TASK_STATUSES.TODO].length === 0 ? (
-                <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks to do</p>
-              ) : (
-                <div className="space-y-2">
-                  {groupedTasks[TASK_STATUSES.TODO].map(task => (
-                    <div
-                      key={task.id}
-                      className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                        className="mt-1 mr-3"
-                        aria-label={`Mark ${task.name} as done`}
-                      />
-                      <div className="flex-grow">
-                        <h5 className="font-medium">{task.name}</h5>
-                        {task.description && (
-                          <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
-                            {task.description}
-                          </p>
-                        )}
-                        <div className="flex items-center mt-2 text-xs text-zinc-500">
-                          <span className="mr-3">Priority: {task.priority}</span>
-                          {task.due_date && (
-                            <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                          )}
+            {states.length > 0 ? (
+              // Render columns based on workflow states
+              <>
+                {states.map(state => (
+                  <div key={state.id}>
+                    <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                      {state.name} ({(groupedTasks[state.id] || []).length})
+                    </h4>
+                    {(groupedTasks[state.id] || []).length === 0 ? (
+                      <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in this state</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(groupedTasks[state.id] || []).map(task => (
+                          <div
+                            key={task.id}
+                            className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                          >
+                            <div className="flex-grow">
+                              <h5 className="font-medium">{task.name}</h5>
+                              {task.description && (
+                                <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
+                                  {task.description}
+                                </p>
+                              )}
+                              <div className="flex items-center mt-2 text-xs text-zinc-500">
+                                <span className="mr-3">Priority: {task.priority}</span>
+                                {task.due_date && (
+                                  <span className="mr-3">Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                                )}
+                                {task.task_type_id && (
+                                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 rounded-full text-xs">
+                                    {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center ml-2">
+                              <button
+                                onClick={() => handleEditTask(task)}
+                                className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
+                                aria-label={`Edit ${task.name}`}
+                              >
+                                ✎
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTask(task.id)}
+                                className="text-zinc-500 hover:text-red-500"
+                                aria-label={`Delete ${task.name}`}
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            ) : (
+              // Fallback to legacy status columns if no workflow states are defined
+              <>
+                {/* To Do Tasks */}
+                <div>
+                  <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    To Do ({groupedTasks[TASK_STATUSES.TODO]?.length || 0})
+                  </h4>
+                  {!groupedTasks[TASK_STATUSES.TODO] || groupedTasks[TASK_STATUSES.TODO].length === 0 ? (
+                    <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks to do</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {groupedTasks[TASK_STATUSES.TODO].map(task => (
+                        <div
+                          key={task.id}
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={false}
+                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
+                            className="mt-1 mr-3"
+                            aria-label={`Mark ${task.name} as done`}
+                          />
+                          <div className="flex-grow">
+                            <h5 className="font-medium">{task.name}</h5>
+                            {task.description && (
+                              <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
+                                {task.description}
+                              </p>
+                            )}
+                            <div className="flex items-center mt-2 text-xs text-zinc-500">
+                              <span className="mr-3">Priority: {task.priority}</span>
+                              {task.due_date && (
+                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center ml-2">
+                            <button
+                              onClick={() => handleEditTask(task)}
+                              className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
+                              aria-label={`Edit ${task.name}`}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="text-zinc-500 hover:text-red-500"
+                              aria-label={`Delete ${task.name}`}
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center ml-2">
-                        <button
-                          onClick={() => handleEditTask(task)}
-                          className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
-                          aria-label={`Edit ${task.name}`}
-                        >
-                          ✎
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="text-zinc-500 hover:text-red-500"
-                          aria-label={`Delete ${task.name}`}
-                        >
-                          🗑️
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* In Progress Tasks */}
-            <div>
-              <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                In Progress ({groupedTasks[TASK_STATUSES.IN_PROGRESS].length})
-              </h4>
-              {groupedTasks[TASK_STATUSES.IN_PROGRESS].length === 0 ? (
-                <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in progress</p>
-              ) : (
-                <div className="space-y-2">
-                  {groupedTasks[TASK_STATUSES.IN_PROGRESS].map(task => (
-                    <div
-                      key={task.id}
-                      className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                        className="mt-1 mr-3"
-                        aria-label={`Mark ${task.name} as done`}
-                      />
-                      <div className="flex-grow">
-                        <h5 className="font-medium">{task.name}</h5>
-                        {task.description && (
-                          <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
-                            {task.description}
-                          </p>
-                        )}
-                        <div className="flex items-center mt-2 text-xs text-zinc-500">
-                          <span className="mr-3">Priority: {task.priority}</span>
-                          {task.due_date && (
-                            <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                          )}
+                {/* In Progress Tasks */}
+                <div>
+                  <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    In Progress ({groupedTasks[TASK_STATUSES.IN_PROGRESS]?.length || 0})
+                  </h4>
+                  {!groupedTasks[TASK_STATUSES.IN_PROGRESS] || groupedTasks[TASK_STATUSES.IN_PROGRESS].length === 0 ? (
+                    <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in progress</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {groupedTasks[TASK_STATUSES.IN_PROGRESS].map(task => (
+                        <div
+                          key={task.id}
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={false}
+                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
+                            className="mt-1 mr-3"
+                            aria-label={`Mark ${task.name} as done`}
+                          />
+                          <div className="flex-grow">
+                            <h5 className="font-medium">{task.name}</h5>
+                            {task.description && (
+                              <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
+                                {task.description}
+                              </p>
+                            )}
+                            <div className="flex items-center mt-2 text-xs text-zinc-500">
+                              <span className="mr-3">Priority: {task.priority}</span>
+                              {task.due_date && (
+                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center ml-2">
+                            <button
+                              onClick={() => handleEditTask(task)}
+                              className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
+                              aria-label={`Edit ${task.name}`}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="text-zinc-500 hover:text-red-500"
+                              aria-label={`Delete ${task.name}`}
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center ml-2">
-                        <button
-                          onClick={() => handleEditTask(task)}
-                          className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
-                          aria-label={`Edit ${task.name}`}
-                        >
-                          ✎
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="text-zinc-500 hover:text-red-500"
-                          aria-label={`Delete ${task.name}`}
-                        >
-                          🗑️
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Done Tasks */}
-            <div>
-              <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Done ({groupedTasks[TASK_STATUSES.DONE].length})
-              </h4>
-              {groupedTasks[TASK_STATUSES.DONE].length === 0 ? (
-                <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No completed tasks</p>
-              ) : (
-                <div className="space-y-2">
-                  {groupedTasks[TASK_STATUSES.DONE].map(task => (
-                    <div
-                      key={task.id}
-                      className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start opacity-70"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={true}
-                        onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                        className="mt-1 mr-3"
-                        aria-label={`Mark ${task.name} as not done`}
-                      />
-                      <div className="flex-grow">
-                        <h5 className="font-medium line-through">{task.name}</h5>
-                        {task.description && (
-                          <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1 line-through">
-                            {task.description}
-                          </p>
-                        )}
-                        <div className="flex items-center mt-2 text-xs text-zinc-500">
-                          <span className="mr-3">Priority: {task.priority}</span>
-                          {task.due_date && (
-                            <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center ml-2">
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="text-zinc-500 hover:text-red-500"
-                          aria-label={`Delete ${task.name}`}
+                {/* Done Tasks */}
+                <div>
+                  <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    Done ({groupedTasks[TASK_STATUSES.DONE]?.length || 0})
+                  </h4>
+                  {!groupedTasks[TASK_STATUSES.DONE] || groupedTasks[TASK_STATUSES.DONE].length === 0 ? (
+                    <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No completed tasks</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {groupedTasks[TASK_STATUSES.DONE].map(task => (
+                        <div
+                          key={task.id}
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start opacity-70"
                         >
-                          🗑️
-                        </button>
-                      </div>
+                          <input
+                            type="checkbox"
+                            checked={true}
+                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
+                            className="mt-1 mr-3"
+                            aria-label={`Mark ${task.name} as not done`}
+                          />
+                          <div className="flex-grow">
+                            <h5 className="font-medium line-through">{task.name}</h5>
+                            {task.description && (
+                              <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1 line-through">
+                                {task.description}
+                              </p>
+                            )}
+                            <div className="flex items-center mt-2 text-xs text-zinc-500">
+                              <span className="mr-3">Priority: {task.priority}</span>
+                              {task.due_date && (
+                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center ml-2">
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="text-zinc-500 hover:text-red-500"
+                              aria-label={`Delete ${task.name}`}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -734,6 +1004,62 @@ const ProjectDetail = () => {
                     <option value={TASK_STATUSES.DONE}>Done</option>
                   </select>
                 </div>
+                
+                <div className="mb-4">
+                  <label htmlFor="taskType" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                    Task Type
+                  </label>
+                  <select
+                    id="taskType"
+                    value={taskTypeId || ''}
+                    onChange={(e) => handleTaskTypeChange(e.target.value)}
+                    className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
+                  >
+                    <option value="">No Type</option>
+                    {taskTypes.map(type => (
+                      <option key={type.id} value={type.id}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {taskTypeId && (
+                  <div className="mb-4">
+                    <label htmlFor="taskState" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                      State
+                    </label>
+                    <select
+                      id="taskState"
+                      value={taskStateId || ''}
+                      onChange={(e) => setTaskStateId(e.target.value)}
+                      className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
+                    >
+                      <option value="">Select State</option>
+                      {(() => {
+                        // Determine valid states based on the workflow
+                        let validStates: ProjectState[] = [];
+                        
+                        if (taskTypeId) {
+                          const taskType = taskTypes.find(tt => tt.id === taskTypeId);
+                          if (taskType) {
+                            const workflowId = taskType.workflow_id;
+                            validStates = getWorkflowStates(workflowId);
+                            
+                            // For existing task, only allow valid transitions
+                            if (taskFormMode === 'edit' && currentTask) {
+                              validStates = getNextValidStates(currentTask);
+                            }
+                          }
+                        }
+                        
+                        return validStates.map(state => (
+                          <option key={state.id} value={state.id}>{state.name}</option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                )}
                 
                 <div className="mb-4">
                   <label htmlFor="taskPriority" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
