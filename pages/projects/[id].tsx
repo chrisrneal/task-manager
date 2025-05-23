@@ -805,7 +805,9 @@ const ProjectDetail = () => {
                             aria-label={`Mark ${task.name} as done`}
                           />
                           <div className="flex-grow">
-                            <h5 className="font-medium">{task.name}</h5>
+                            <Link href={`/tasks/${task.id}`}>
+                              <h5 className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{task.name}</h5>
+                            </Link>
                             {task.description && (
                               <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
                                 {task.description}
@@ -819,6 +821,14 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
+                            <Link href={`/tasks/${task.id}`}>
+                              <button
+                                className="text-zinc-500 hover:text-blue-500 mr-2"
+                                aria-label={`View details for ${task.name}`}
+                              >
+                                👁️
+                              </button>
+                            </Link>
                             <button
                               onClick={() => handleEditTask(task)}
                               className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
@@ -862,7 +872,9 @@ const ProjectDetail = () => {
                             aria-label={`Mark ${task.name} as done`}
                           />
                           <div className="flex-grow">
-                            <h5 className="font-medium">{task.name}</h5>
+                            <Link href={`/tasks/${task.id}`}>
+                              <h5 className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{task.name}</h5>
+                            </Link>
                             {task.description && (
                               <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
                                 {task.description}
@@ -876,6 +888,14 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
+                            <Link href={`/tasks/${task.id}`}>
+                              <button
+                                className="text-zinc-500 hover:text-blue-500 mr-2"
+                                aria-label={`View details for ${task.name}`}
+                              >
+                                👁️
+                              </button>
+                            </Link>
                             <button
                               onClick={() => handleEditTask(task)}
                               className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
@@ -919,7 +939,9 @@ const ProjectDetail = () => {
                             aria-label={`Mark ${task.name} as not done`}
                           />
                           <div className="flex-grow">
-                            <h5 className="font-medium line-through">{task.name}</h5>
+                            <Link href={`/tasks/${task.id}`}>
+                              <h5 className="font-medium line-through text-blue-600 hover:text-blue-800 cursor-pointer">{task.name}</h5>
+                            </Link>
                             {task.description && (
                               <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1 line-through">
                                 {task.description}
@@ -933,6 +955,14 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
+                            <Link href={`/tasks/${task.id}`}>
+                              <button
+                                className="text-zinc-500 hover:text-blue-500 mr-2"
+                                aria-label={`View details for ${task.name}`}
+                              >
+                                👁️
+                              </button>
+                            </Link>
                             <button
                               onClick={() => handleDeleteTask(task.id)}
                               className="text-zinc-500 hover:text-red-500"
