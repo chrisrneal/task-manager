@@ -29,6 +29,12 @@ export interface WorkflowStep {
   step_order: number;
 }
 
+export interface WorkflowTransition {
+  workflow_id: string;
+  from_state: string | null; // For "any state", use '00000000-0000-0000-0000-000000000000' instead of null due to DB constraints
+  to_state: string;
+}
+
 export interface TaskType {
   id: string;
   project_id: string;
@@ -67,6 +73,7 @@ export interface Database {
   project_states: ProjectState[];
   workflows: Workflow[];
   workflow_steps: WorkflowStep[];
+  workflow_transitions: WorkflowTransition[];
   task_types: TaskType[];
   tasks: Task[];
   subtasks: Subtask[];

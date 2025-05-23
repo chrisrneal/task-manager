@@ -157,28 +157,48 @@ The task management system supports a flexible transition graph model where task
 
 - Each workflow has a set of **workflow transitions** that define allowed state changes
 - A transition defines a path from one state (from_state) to another state (to_state) within a workflow
-- When from_state is NULL, the transition applies from any state to the specified to_state
-- Example: A "Cancelled" state can be reached from any other state by defining a transition with NULL as from_state
+- A state can have multiple outgoing transitions, enabling branching workflows
+- Transitions can form cycles, allowing states to loop back to previous states
+- When from_state is '00000000-0000-0000-0000-000000000000' (placeholder UUID for NULL), the transition applies from any state to the specified to_state
+- Example: A "Cancelled" state can be reached from any other state by defining a transition with the placeholder UUID as from_state
 
-### Example Transition Graph
+### Implementation Details
+
+- For database primary key constraints, NULL values in from_state use a placeholder UUID:
+  ```sql
+  PRIMARY KEY (workflow_id, COALESCE(from_state, '00000000-0000-0000-0000-000000000000'), to_state)
+  ```
+- This allows proper indexing while maintaining the semantic meaning of "any state" transitions
+
+### Example Transition Graph (Branching and Cyclical)
 
 ```
-                 ┌─────────────┐
-                 │   New Task  │
-                 └──────┬──────┘
-                        │
-                        ▼
-                 ┌─────────────┐
-                 │  In Progress│
-                 └──────┬──────┘
-                        │
-                        ▼
-                 ┌─────────────┐
-                 │   Completed │
-                 └─────────────┘
-                      
-                                            ┌─────────────┐
-                     ────────────────────▶ │  Cancelled  │
-                 Any state can transition   └─────────────┘
-                    to cancelled state
+                                  ┌─────────────┐
+                             ┌───▶│   State B   │───┐
+                             │    └─────────────┘   │
+                             │                      ▼
+        ┌─────────────┐      │                    ┌─────────────┐
+        │   State A   │──────┼───▶│   State C   │─┐│   State D   │
+        └─────────────┘      │    └─────────────┘ │└─────────────┘
+             ▲               │           │        │
+             │               │           ▼        │
+             │               │    ┌─────────────┐ │
+             │               └───▶│   State H   │◀┘
+             │                    └─────────────┘
+             │                           ▲
+             │                           │
+             │                           │
+             │                    ┌─────────────┐
+             └────────────────────│   State G   │
+                                  └─────────────┘
+                                        ▲
+                                       ┌┴┐
+                               ┌───────┴─┴───────┐
+                               │                 │
+                         ┌─────────────┐   ┌─────────────┐  
+                         │   State E   │   │   State F   │
+                         └─────────────┘   └─────────────┘
+
+            Any state can transition to a specific state (e.g., Cancelled)
+                      using placeholder UUID for from_state
 ```

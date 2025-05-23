@@ -72,6 +72,9 @@ Access to project settings is restricted to project owners and users with admin 
 - **Dynamic Board Columns**: Task boards render columns from workflow states instead of hardcoded statuses
 - **Workflow State Transitions**: Tasks can only move to valid next states in their workflow
 - **Task Type Integration**: Changing a task's type automatically updates its workflow and resets to the first state
+- **Branching & Cyclical Workflows**: States can have multiple outgoing transitions, enabling complex workflow patterns
+- **Any-State Transitions**: Special transitions that allow moving to a specific state from any other state
+- **Interactive Workflow Editor**: Canvas-based UI for visually creating and managing workflow transitions
 - **Two-layer Validation**:
   - Frontend: UI only shows valid state options based on current workflow position
   - Backend: Database constraints validate state transitions server-side
@@ -80,8 +83,10 @@ Access to project settings is restricted to project owners and users with admin 
 
 1. Each project can have multiple task types (e.g., Bug, Feature, Epic)
 2. Task types are associated with specific workflows
-3. Workflows define a sequence of states (columns on the board)
-4. When creating or editing a task:
+3. Workflows define a graph of states with transitions between them (shown as columns on the board)
+4. States can branch to multiple possible next states (e.g., "In Progress" → "Needs Review" or "Blocked")
+5. Cyclical workflows allow returning to previous states
+6. When creating or editing a task:
    - Selecting a task type assigns its workflow
    - Only valid state transitions are allowed
    - Changing task type resets the workflow state
@@ -90,8 +95,10 @@ Access to project settings is restricted to project owners and users with admin 
 
 The workflow system is implemented with:
 
-- Database schema with `workflows`, `workflow_steps`, `task_types`, and `project_states` tables
+- Database schema with `workflows`, `workflow_steps`, `workflow_transitions`, `task_types`, and `project_states` tables
+- Transitions with placeholder UUID (all zeros) for from_state represent "any state" transitions
 - PostgreSQL trigger function to validate state transitions
+- Interactive canvas-based workflow editor with SVG for transition visualization
 - React components for dynamic board rendering
 - Frontend logic to manage workflow state changes
 
