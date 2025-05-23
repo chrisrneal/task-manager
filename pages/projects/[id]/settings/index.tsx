@@ -27,6 +27,12 @@ const ProjectSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [editedProjectName, setEditedProjectName] = useState('');
+  const [isSubmittingName, setIsSubmittingName] = useState(false);
+  const [nameUpdateSuccess, setNameUpdateSuccess] = useState(false);
+  const [editedProjectName, setEditedProjectName] = useState('');
+  const [isSubmittingName, setIsSubmittingName] = useState(false);
+  const [nameUpdateSuccess, setNameUpdateSuccess] = useState(false);
 
   // Auth protection and admin role check
   useEffect(() => {
@@ -69,6 +75,8 @@ const ProjectSettings = () => {
             
             setIsAdmin(true);
             setProject(projectData);
+            setEditedProjectName(projectData.name);
+            setEditedProjectName(projectData.name); // Initialize edited project name
           } catch (err) {
             router.replace('/projects');
           }
@@ -153,6 +161,319 @@ const ProjectSettings = () => {
   const handleTaskTypesChange = (updatedTaskTypes: TaskType[]) => {
     setTaskTypes(updatedTaskTypes);
   };
+  
+// Handler to update project name
+const handleUpdateProjectName = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!editedProjectName.trim()) {
+    setError('Project name cannot be empty');
+    return;
+  }
+
+  if (editedProjectName === project?.name) {
+    return; // No change, don't submit
+  }
+  
+  setIsSubmittingName(true);
+  setError(null);
+  setNameUpdateSuccess(false);
+  
+  // Store original name for rollback if needed
+  const originalName = project?.name;
+  
+  // Optimistic update
+  setProject(prev => prev ? { ...prev, name: editedProjectName } : null);
+  
+  try {
+    const traceId = uuidv4();
+    console.log(`[${traceId}] Updating project name for project: ${projectId}`);
+    
+    // Get the session token
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+    
+    // Call API to update project name
+    const response = await fetch(`/api/projects/${projectId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        name: editedProjectName,
+        description: project?.description
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update project name');
+    }
+    
+    const { data } = await response.json();
+    
+    // Update project state with server response
+    setProject(data);
+    
+    // Show success message
+    setNameUpdateSuccess(true);
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+      setNameUpdateSuccess(false);
+    }, 3000);
+    
+    console.log(`[${traceId}] Project name updated successfully`);
+  } catch (err: any) {
+    console.error('Error updating project name:', err.message);
+    setError('Failed to update project name. Please try again.');
+    
+    // Rollback optimistic update
+    setProject(prev => prev ? { ...prev, name: originalName } : null);
+    setEditedProjectName(originalName || '');
+  } finally {
+    setIsSubmittingName(false);
+  }
+};
+  
+  // Handler to update project name
+  const handleUpdateProjectName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editedProjectName.trim()) {
+      setError('Project name cannot be empty');
+      return;
+    }
+
+    if (editedProjectName === project?.name) {
+      return; // No change, don't submit
+    }
+    
+    setIsSubmittingName(true);
+    setError(null);
+    setNameUpdateSuccess(false);
+    
+    // Store original name for rollback if needed
+    const originalName = project?.name;
+    
+    // Optimistic update
+    setProject(prev => prev ? { ...prev, name: editedProjectName } : null);
+    
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Updating project name for project: ${projectId}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Call API to update project name
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `******        },
+        body: JSON.stringify({
+          name: editedProjectName,
+          description: project?.description
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update project name');
+      }
+      
+      const { data } = await response.json();
+      
+      // Update project state with server response
+      setProject(data);
+      
+      // Show success message
+      setNameUpdateSuccess(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setNameUpdateSuccess(false);
+      }, 3000);
+      
+      console.log(`[${traceId}] Project name updated successfully`);
+    } catch (err: any) {
+      console.error('Error updating project name:', err.message);
+      setError('Failed to update project name. Please try again.');
+      
+      // Rollback optimistic update
+      setProject(prev => prev ? { ...prev, name: originalName } : null);
+      setEditedProjectName(originalName || '');
+    } finally {
+      setIsSubmittingName(false);
+    }
+  };
+  
+  // Handler to update project name
+  const handleUpdateProjectName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editedProjectName.trim()) {
+      setError('Project name cannot be empty');
+      return;
+    }
+
+    if (editedProjectName === project?.name) {
+      return; // No change, don't submit
+    }
+    
+    setIsSubmittingName(true);
+    setError(null);
+    setNameUpdateSuccess(false);
+    
+    // Store original name for rollback if needed
+    const originalName = project?.name;
+    
+    // Optimistic update
+    setProject(prev => prev ? { ...prev, name: editedProjectName } : null);
+    
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Updating project name for project: ${projectId}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Call API to update project name
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `******        },
+        body: JSON.stringify({
+          name: editedProjectName,
+          description: project?.description
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update project name');
+      }
+      
+      const { data } = await response.json();
+      
+      // Update project state with server response
+      setProject(data);
+      
+      // Show success message
+      setNameUpdateSuccess(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setNameUpdateSuccess(false);
+      }, 3000);
+      
+      console.log(`[${traceId}] Project name updated successfully`);
+    } catch (err: any) {
+      console.error('Error updating project name:', err.message);
+      setError('Failed to update project name. Please try again.');
+      
+      // Rollback optimistic update
+      setProject(prev => prev ? { ...prev, name: originalName } : null);
+      setEditedProjectName(originalName || '');
+    } finally {
+      setIsSubmittingName(false);
+    }
+  };
+
+  // Handler to update project name
+  const handleUpdateProjectName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editedProjectName.trim()) {
+      setError('Project name cannot be empty');
+      return;
+    }
+
+    if (editedProjectName === project?.name) {
+      return; // No change, don't submit
+    }
+    
+    setIsSubmittingName(true);
+    setError(null);
+    setNameUpdateSuccess(false);
+    
+    // Store original name for rollback if needed
+    const originalName = project?.name;
+    
+    // Optimistic update
+    setProject(prev => prev ? { ...prev, name: editedProjectName } : null);
+    
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Updating project name for project: ${projectId}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Call API to update project name
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `******        },
+        body: JSON.stringify({
+          name: editedProjectName,
+          description: project?.description
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update project name');
+      }
+      
+      const { data } = await response.json();
+      
+      // Update project state with server response
+      setProject(data);
+      
+      // Show success message
+      setNameUpdateSuccess(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setNameUpdateSuccess(false);
+      }, 3000);
+      
+      console.log(`[${traceId}] Project name updated successfully`);
+    } catch (err: any) {
+      console.error('Error updating project name:', err.message);
+      setError('Failed to update project name. Please try again.');
+      
+      // Rollback optimistic update
+      setProject(prev => prev ? { ...prev, name: originalName } : null);
+      setEditedProjectName(originalName || '');
+    } finally {
+      setIsSubmittingName(false);
+    }
+  };
 
   // Loading state
   if (loading || isLoading) {
@@ -197,6 +518,41 @@ const ProjectSettings = () => {
 
         {/* Settings sections */}
         <div className="space-y-8">
+          {/* Project Details Section */}
+          <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
+            <h3 className="font-medium mb-4">Project Details</h3>
+            <form onSubmit={handleUpdateProjectName} className="mb-4">
+              <div className="mb-3">
+                <label htmlFor="projectName" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Project Name
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    id="projectName"
+                    value={editedProjectName}
+                    onChange={(e) => setEditedProjectName(e.target.value)}
+                    className="flex-grow p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600 mr-2"
+                    placeholder="Enter project name"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmittingName || !editedProjectName.trim() || editedProjectName === project?.name}
+                    className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {isSubmittingName ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+              {nameUpdateSuccess && (
+                <p className="text-green-500 text-sm my-2">
+                  Project renamed to "{editedProjectName}"
+                </p>
+              )}
+            </form>
+          </div>
+
           {/* States Section */}
           <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
             <h3 className="font-medium mb-4">States</h3>
