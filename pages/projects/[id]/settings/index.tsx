@@ -33,6 +33,9 @@ const ProjectSettings = () => {
   const [editedProjectName, setEditedProjectName] = useState('');
   const [isSubmittingName, setIsSubmittingName] = useState(false);
   const [nameUpdateSuccess, setNameUpdateSuccess] = useState(false);
+  const [editedProjectName, setEditedProjectName] = useState('');
+  const [isSubmittingName, setIsSubmittingName] = useState(false);
+  const [nameUpdateSuccess, setNameUpdateSuccess] = useState(false);
 
   // Auth protection and admin role check
   useEffect(() => {
@@ -75,6 +78,7 @@ const ProjectSettings = () => {
             
             setIsAdmin(true);
             setProject(projectData);
+            setEditedProjectName(projectData.name);
             setEditedProjectName(projectData.name);
             setEditedProjectName(projectData.name); // Initialize edited project name
           } catch (err) {
@@ -162,6 +166,85 @@ const ProjectSettings = () => {
     setTaskTypes(updatedTaskTypes);
   };
   
+  // Handler to update project name
+  const handleUpdateProjectName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editedProjectName.trim()) {
+      setError('Project name cannot be empty');
+      return;
+    }
+
+    if (editedProjectName === project?.name) {
+      return; // No change, don't submit
+    }
+    
+    setIsSubmittingName(true);
+    setError(null);
+    setNameUpdateSuccess(false);
+    
+    // Store original name for rollback if needed
+    const originalName = project?.name;
+    
+    // Optimistic update
+    setProject(prev => prev ? { ...prev, name: editedProjectName } : null);
+    
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Updating project name for project: ${projectId}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Call API to update project name
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          name: editedProjectName,
+          description: project?.description
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update project name');
+      }
+      
+      const { data } = await response.json();
+      
+      // Update project state with server response
+      setProject(data);
+      
+      // Show success message
+      setNameUpdateSuccess(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setNameUpdateSuccess(false);
+      }, 3000);
+      
+      console.log(`[${traceId}] Project name updated successfully`);
+    } catch (err: any) {
+      console.error('Error updating project name:', err.message);
+      setError('Failed to update project name. Please try again.');
+      
+      // Rollback optimistic update
+      setProject(prev => prev ? { ...prev, name: originalName } : null);
+      setEditedProjectName(originalName || '');
+    } finally {
+      setIsSubmittingName(false);
+    }
+  };
+  
 // Handler to update project name
 const handleUpdateProjectName = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -202,8 +285,7 @@ const handleUpdateProjectName = async (e: React.FormEvent) => {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
+        'Authorization': `******      },
       body: JSON.stringify({
         name: editedProjectName,
         description: project?.description
