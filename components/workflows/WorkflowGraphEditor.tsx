@@ -80,7 +80,7 @@ const WorkflowGraphEditor: React.FC<WorkflowGraphEditorProps> = ({
       
       setNodes(initialNodes);
     }
-  }, [states, transitions]);
+  }, [states, transitions, nodes]);
 
   // Update nodes when transitions change (to update isAnyStateTarget property)
   useEffect(() => {
@@ -362,7 +362,7 @@ const WorkflowGraphEditor: React.FC<WorkflowGraphEditorProps> = ({
 
       {/* Instructions */}
       <div className="absolute bottom-2 left-2 right-2 text-xs text-zinc-500 dark:text-zinc-400 bg-white/80 dark:bg-zinc-800/80 p-1 rounded">
-        <p><strong>Drag</strong>: Move states • <strong>Shift+Drag</strong> from one state to another: Create transition • <strong>Checkbox</strong>: Toggle "Any state can transition here"</p>
+        <p><strong>Drag</strong>: Move states • <strong>Shift+Drag</strong> from one state to another: Create transition • <strong>Checkbox</strong>: Toggle &quot;Any state can transition here&quot;</p>
       </div>
     </div>
   );
