@@ -78,7 +78,7 @@ ON
 -- Create "any state to cancelled" transitions by finding appropriate states
 -- First, we need to identify "Cancelled" states for each workflow
 WITH cancelled_states AS (
-  SELECT ps.id AS state_id, ps.project_id, w.id AS workflow_id
+  SELECT ps.id AS state_id, w.id AS workflow_id
   FROM project_states ps
   JOIN workflows w ON ps.project_id = w.project_id
   WHERE LOWER(ps.name) = 'cancelled'

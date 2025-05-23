@@ -148,16 +148,16 @@ The task management system supports a flexible transition graph model where task
                         │
                         ▼
                  ┌─────────────┐
-                 │  In Progress │
+                 │  In Progress│
                  └──────┬──────┘
                         │
                         ▼
                  ┌─────────────┐
-                 │   Completed  │
+                 │   Completed │
                  └─────────────┘
                       
                                             ┌─────────────┐
-                     ────────────────────▶ │  Cancelled   │
+                     ────────────────────▶ │  Cancelled  │
                  Any state can transition   └─────────────┘
                     to cancelled state
 ```
