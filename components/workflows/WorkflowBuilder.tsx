@@ -5,6 +5,18 @@ import { v4 as uuidv4 } from 'uuid';
 import WorkflowGraphEditor from './WorkflowGraphEditor';
 import TransitionListSidebar from './TransitionListSidebar';
 
+/**
+ * WorkflowBuilder component for creating and managing workflows and their transitions
+ * 
+ * Features:
+ * - Create, edit, and delete workflows
+ * - Manage states in workflows with drag and drop interface
+ * - Create transitions between states with interactive graph editor
+ * - Support for branching workflows (multiple outgoing transitions from a state)
+ * - Support for cyclical workflows (states can form loops)
+ * - Support for global "any state" transitions
+ */
+
 interface WorkflowBuilderProps {
   projectId: string;
   states: ProjectState[];
@@ -851,7 +863,7 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-sm">
                       {showTransitionEditor 
-                        ? 'Define transitions between states in the canvas below.' 
+                        ? 'Define transitions between states in the canvas below. A state can transition to multiple other states, creating branches or cycles.' 
                         : 'Drag states into this workflow to create a sequence. The order determines the flow of tasks.'}
                     </div>
                     <button

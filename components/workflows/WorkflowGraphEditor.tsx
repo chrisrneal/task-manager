@@ -1,6 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ProjectState, WorkflowTransition } from '@/types/database';
 
+/**
+ * WorkflowGraphEditor component for creating and managing workflow transitions
+ * 
+ * Features:
+ * - Supports branching workflows (one state can transition to multiple other states)
+ * - Supports cyclical workflows (states can form loops)
+ * - Allows any-state transitions with toggle checkbox
+ * - Interactive drag-and-drop interface for creating transitions
+ */
+
 interface StateNode {
   id: string;
   name: string;
@@ -362,7 +372,7 @@ const WorkflowGraphEditor: React.FC<WorkflowGraphEditorProps> = ({
 
       {/* Instructions */}
       <div className="absolute bottom-2 left-2 right-2 text-xs text-zinc-500 dark:text-zinc-400 bg-white/80 dark:bg-zinc-800/80 p-1 rounded">
-        <p><strong>Drag</strong>: Move states • <strong>Shift+Drag</strong> from one state to another: Create transition • <strong>Checkbox</strong>: Toggle &quot;Any state can transition here&quot;</p>
+        <p><strong>Drag</strong>: Move states • <strong>Shift+Drag</strong> from one state to another: Create transition • <strong>Checkbox</strong>: Toggle &quot;Any state can transition here&quot; • States can have multiple outgoing transitions and form cycles</p>
       </div>
     </div>
   );

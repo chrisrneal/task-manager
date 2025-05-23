@@ -1,6 +1,16 @@
 import React from 'react';
 import { ProjectState, WorkflowTransition } from '@/types/database';
 
+/**
+ * TransitionListSidebar displays a list of all transitions in a workflow
+ * 
+ * Features:
+ * - Shows all transitions including branching paths and cycles
+ * - Highlights "Any state" transitions
+ * - Allows deleting transitions
+ * - Displays transition direction with "from" and "to" states
+ */
+
 interface TransitionListSidebarProps {
   transitions: WorkflowTransition[];
   states: ProjectState[];
