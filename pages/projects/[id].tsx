@@ -120,7 +120,7 @@ const ProjectDetail = () => {
       console.error('Error fetching workflow data:', err.message);
       setError('Failed to load workflow data');
     }
-  }, [user, projectId, supabase]);
+  }, [user, projectId]);
 
   // Get states for a specific workflow
   const getWorkflowStates = (workflowId: string): ProjectState[] => {
@@ -318,7 +318,7 @@ const ProjectDetail = () => {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [user, projectId, tasks, supabase]);
+  }, [user, projectId, tasks]);
 
   // Fetch workflow data when the project is loaded
   useEffect(() => {
@@ -739,7 +739,11 @@ const ProjectDetail = () => {
                             className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
                           >
                             <div className="flex-grow">
-                              <h5 className="font-medium">{task.name}</h5>
+                              <h5 className="font-medium">
+                                <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                  {task.name}
+                                </Link>
+                              </h5>
                               {task.description && (
                                 <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
                                   {task.description}
@@ -758,6 +762,9 @@ const ProjectDetail = () => {
                               </div>
                             </div>
                             <div className="flex items-center ml-2">
+                              <Link href={`/tasks/${task.id}`} className="text-zinc-500 hover:text-blue-500 mr-2" aria-label={`View details for ${task.name}`}>
+                                👁️
+                              </Link>
                               <button
                                 onClick={() => handleEditTask(task)}
                                 className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
@@ -805,9 +812,11 @@ const ProjectDetail = () => {
                             aria-label={`Mark ${task.name} as done`}
                           />
                           <div className="flex-grow">
-                            <Link href={`/tasks/${task.id}`}>
-                              <h5 className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{task.name}</h5>
-                            </Link>
+                            <h5 className="font-medium">
+                              <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                {task.name}
+                              </Link>
+                            </h5>
                             {task.description && (
                               <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
                                 {task.description}
@@ -821,13 +830,8 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
-                            <Link href={`/tasks/${task.id}`}>
-                              <button
-                                className="text-zinc-500 hover:text-blue-500 mr-2"
-                                aria-label={`View details for ${task.name}`}
-                              >
-                                👁️
-                              </button>
+                            <Link href={`/tasks/${task.id}`} className="text-zinc-500 hover:text-blue-500 mr-2" aria-label={`View details for ${task.name}`}>
+                              👁️
                             </Link>
                             <button
                               onClick={() => handleEditTask(task)}
@@ -872,9 +876,11 @@ const ProjectDetail = () => {
                             aria-label={`Mark ${task.name} as done`}
                           />
                           <div className="flex-grow">
-                            <Link href={`/tasks/${task.id}`}>
-                              <h5 className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{task.name}</h5>
-                            </Link>
+                            <h5 className="font-medium">
+                              <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                {task.name}
+                              </Link>
+                            </h5>
                             {task.description && (
                               <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
                                 {task.description}
@@ -888,13 +894,8 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
-                            <Link href={`/tasks/${task.id}`}>
-                              <button
-                                className="text-zinc-500 hover:text-blue-500 mr-2"
-                                aria-label={`View details for ${task.name}`}
-                              >
-                                👁️
-                              </button>
+                            <Link href={`/tasks/${task.id}`} className="text-zinc-500 hover:text-blue-500 mr-2" aria-label={`View details for ${task.name}`}>
+                              👁️
                             </Link>
                             <button
                               onClick={() => handleEditTask(task)}
@@ -939,9 +940,11 @@ const ProjectDetail = () => {
                             aria-label={`Mark ${task.name} as not done`}
                           />
                           <div className="flex-grow">
-                            <Link href={`/tasks/${task.id}`}>
-                              <h5 className="font-medium line-through text-blue-600 hover:text-blue-800 cursor-pointer">{task.name}</h5>
-                            </Link>
+                            <h5 className="font-medium line-through">
+                              <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                {task.name}
+                              </Link>
+                            </h5>
                             {task.description && (
                               <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1 line-through">
                                 {task.description}
@@ -955,13 +958,8 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
-                            <Link href={`/tasks/${task.id}`}>
-                              <button
-                                className="text-zinc-500 hover:text-blue-500 mr-2"
-                                aria-label={`View details for ${task.name}`}
-                              >
-                                👁️
-                              </button>
+                            <Link href={`/tasks/${task.id}`} className="text-zinc-500 hover:text-blue-500 mr-2" aria-label={`View details for ${task.name}`}>
+                              👁️
                             </Link>
                             <button
                               onClick={() => handleDeleteTask(task.id)}
