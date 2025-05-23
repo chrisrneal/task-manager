@@ -28,6 +28,7 @@ const ProjectSettings = () => {
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editedProjectName, setEditedProjectName] = useState('');
+  const [editedProjectDescription, setEditedProjectDescription] = useState('');
   const [isSubmittingName, setIsSubmittingName] = useState(false);
   const [nameUpdateSuccess, setNameUpdateSuccess] = useState(false);
 
@@ -73,6 +74,7 @@ const ProjectSettings = () => {
             setIsAdmin(true);
             setProject(projectData);
             setEditedProjectName(projectData.name); // Initialize edited project name
+            setEditedProjectDescription(projectData.description || ''); // Initialize edited project description
           } catch (err) {
             router.replace('/projects');
           }
@@ -158,7 +160,7 @@ const ProjectSettings = () => {
     setTaskTypes(updatedTaskTypes);
   };
   
-  // Handler to update project name
+  // Handler to update project details (name and description)
   const handleUpdateProjectName = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -167,23 +169,31 @@ const ProjectSettings = () => {
       return;
     }
 
-    if (editedProjectName === project?.name) {
-      return; // No change, don't submit
+    const hasNameChanged = editedProjectName !== project?.name;
+    const hasDescriptionChanged = editedProjectDescription !== (project?.description || '');
+    
+    if (!hasNameChanged && !hasDescriptionChanged) {
+      return; // No changes, don't submit
     }
     
     setIsSubmittingName(true);
     setError(null);
     setNameUpdateSuccess(false);
     
-    // Store original name for rollback if needed
+    // Store original values for rollback if needed
     const originalName = project?.name || '';
+    const originalDescription = project?.description || '';
     
     // Optimistic update
-    setProject(prev => prev ? { ...prev, name: editedProjectName } : null);
+    setProject(prev => prev ? { 
+      ...prev, 
+      name: editedProjectName,
+      description: editedProjectDescription || null
+    } : null);
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Updating project name for project: ${projectId}`);
+      console.log(`[${traceId}] Updating project details for project: ${projectId}`);
       
       // Get the session token
       const { data: sessionData } = await supabase.auth.getSession();
@@ -193,7 +203,7 @@ const ProjectSettings = () => {
         throw new Error('No authentication token available');
       }
       
-      // Call API to update project name
+      // Call API to update project details
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'PUT',
         headers: {
@@ -202,13 +212,13 @@ const ProjectSettings = () => {
         },
         body: JSON.stringify({
           name: editedProjectName,
-          description: project?.description
+          description: editedProjectDescription || null
         })
       });
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to update project name');
+        throw new Error(error.error || 'Failed to update project details');
       }
       
       const { data } = await response.json();
@@ -224,14 +234,19 @@ const ProjectSettings = () => {
         setNameUpdateSuccess(false);
       }, 3000);
       
-      console.log(`[${traceId}] Project name updated successfully`);
+      console.log(`[${traceId}] Project details updated successfully`);
     } catch (err: any) {
-      console.error('Error updating project name:', err.message);
-      setError('Failed to update project name. Please try again.');
+      console.error('Error updating project details:', err.message);
+      setError('Failed to update project details. Please try again.');
       
       // Rollback optimistic update
-      setProject(prev => prev ? { ...prev, name: originalName } : null);
-      setEditedProjectName(originalName || '');
+      setProject(prev => prev ? { 
+        ...prev, 
+        name: originalName,
+        description: originalDescription || null
+      } : null);
+      setEditedProjectName(originalName);
+      setEditedProjectDescription(originalDescription);
     } finally {
       setIsSubmittingName(false);
     }
@@ -298,18 +313,37 @@ const ProjectSettings = () => {
                     placeholder="Enter project name"
                     required
                   />
-                  <button
-                    type="submit"
-                    disabled={isSubmittingName || !editedProjectName.trim() || editedProjectName === project?.name}
-                    className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {isSubmittingName ? "Saving..." : "Save"}
-                  </button>
                 </div>
+              </div>
+              <div className="mb-3">
+                <label htmlFor="projectDescription" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Project Description
+                </label>
+                <textarea
+                  id="projectDescription"
+                  value={editedProjectDescription}
+                  onChange={(e) => setEditedProjectDescription(e.target.value)}
+                  className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
+                  placeholder="Enter project description (optional)"
+                  rows={3}
+                />
+              </div>
+              <div className="flex items-center">
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmittingName || 
+                    !editedProjectName.trim() || 
+                    (editedProjectName === project?.name && editedProjectDescription === (project?.description || ''))
+                  }
+                  className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isSubmittingName ? "Saving..." : "Save Changes"}
+                </button>
               </div>
               {nameUpdateSuccess && (
                 <p className="text-green-500 text-sm my-2">
-                  Project renamed to &quot;{editedProjectName}&quot;
+                  Project details updated successfully
                 </p>
               )}
             </form>
