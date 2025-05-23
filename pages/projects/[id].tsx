@@ -691,10 +691,10 @@ const ProjectDetail = () => {
           </div>
           <div className="flex space-x-2">
             <Link
-              href={`/projects/${projectId}/settings/workflows`}
+              href={`/projects/${projectId}/settings`}
               className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-800/30 dark:text-indigo-300 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-800/50 text-sm"
             >
-              Workflows Settings
+              Project Settings
             </Link>
             <button
               onClick={() => router.push('/projects')}
