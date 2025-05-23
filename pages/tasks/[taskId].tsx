@@ -15,13 +15,13 @@ type Task = {
 
 export default function TaskDetail() {
 	const router = useRouter()
-	const { id } = router.query
+	const { taskId } = router.query
 	const [task, setTask] = useState<Task | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 
 	useEffect(() => {
-		if (!id) return
+		if (!taskId) return
 
 		const fetchTask = async () => {
 			setLoading(true)
@@ -31,7 +31,7 @@ export default function TaskDetail() {
 				const { data, error } = await supabase
 					.from('tasks')
 					.select('*')
-					.eq('id', id)
+					.eq('id', taskId)
 					.single()
 
 				if (error) throw error
@@ -45,7 +45,7 @@ export default function TaskDetail() {
 		}
 
 		fetchTask()
-	}, [id])
+	}, [taskId])
 
 	if (loading) {
 		return <div className='p-4'>Loading...</div>

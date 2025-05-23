@@ -7,11 +7,11 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
-  const { id } = req.query;
+  const { taskId } = req.query;
   
   // Generate trace ID for request logging
   const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/tasks/${id} - Request received`);
+  console.log(`[${traceId}] ${method} /api/tasks/${taskId} - Request received`);
 
   // Extract user token from request
   const authHeader = req.headers.authorization;
@@ -46,13 +46,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
-        .eq('id', id)
+        .eq('id', taskId)
         .eq('owner_id', user.id)
         .single();
 
       if (error) {
         if (error.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Task not found - ${id}`);
+          console.log(`[${traceId}] Error: Task not found - ${taskId}`);
           return res.status(404).json({ 
             error: 'Task not found',
             traceId
@@ -61,7 +61,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         throw error;
       }
       
-      console.log(`[${traceId}] GET /api/tasks/${id} - Success`);
+      console.log(`[${traceId}] GET /api/tasks/${taskId} - Success`);
       return res.status(200).json({ data, traceId });
     }
     
@@ -81,13 +81,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       const { data: existingTask, error: findError } = await supabase
         .from('tasks')
         .select('*')
-        .eq('id', id)
+        .eq('id', taskId)
         .eq('owner_id', user.id)
         .single();
 
       if (findError) {
         if (findError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Task not found or access denied - ${id}`);
+          console.log(`[${traceId}] Error: Task not found or access denied - ${taskId}`);
           return res.status(404).json({ 
             error: 'Task not found or access denied',
             traceId
@@ -108,13 +108,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           state_id: state_id !== undefined ? state_id : existingTask.state_id,
           updated_at: new Date().toISOString()
         })
-        .eq('id', id)
+        .eq('id', taskId)
         .eq('owner_id', user.id)
         .select();
 
       if (error) throw error;
       
-      console.log(`[${traceId}] PUT /api/tasks/${id} - Success, updated task`);
+      console.log(`[${traceId}] PUT /api/tasks/${taskId} - Success, updated task`);
       return res.status(200).json({ data: data[0], traceId });
     }
     
@@ -124,13 +124,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       const { data: existingTask, error: findError } = await supabase
         .from('tasks')
         .select('*')
-        .eq('id', id)
+        .eq('id', taskId)
         .eq('owner_id', user.id)
         .single();
 
       if (findError) {
         if (findError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Task not found or access denied - ${id}`);
+          console.log(`[${traceId}] Error: Task not found or access denied - ${taskId}`);
           return res.status(404).json({ 
             error: 'Task not found or access denied',
             traceId
@@ -142,12 +142,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       const { error } = await supabase
         .from('tasks')
         .delete()
-        .eq('id', id)
+        .eq('id', taskId)
         .eq('owner_id', user.id);
 
       if (error) throw error;
       
-      console.log(`[${traceId}] DELETE /api/tasks/${id} - Success, deleted task`);
+      console.log(`[${traceId}] DELETE /api/tasks/${taskId} - Success, deleted task`);
       return res.status(200).json({ success: true, traceId });
     }
     
