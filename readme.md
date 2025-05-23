@@ -25,6 +25,7 @@
 - 📊 Customizable project dashboards
 - 🚀 Dynamic task board with workflow states
 - 🔄 Workflow-driven task transitions
+- 📎 Secure file uploads for task attachments
 
 ## Task Management
 
@@ -35,6 +36,21 @@ The application allows users to:
 - Add tasks with details like name, description, priority, and due date
 - Organize tasks in customizable boards
 - Track task progress through workflows
+- Attach files (images, PDFs) to tasks with secure access control
+
+## Task Files
+
+### Security Features
+
+- **Supabase Storage Integration**: Files are stored in a secure, private bucket
+- **Row-Level Security**: Files inherit the same access control as their parent tasks
+- **Signed URLs**: File downloads use temporary signed URLs with 60-minute expiry
+- **Type Validation**: Only allowed file types (JPEG, PNG, PDF) can be uploaded
+- **Size Limits**: Maximum file size of 10 MB enforced
+
+### Implementation
+
+Files can be uploaded to tasks using a drag-and-drop interface. Each task can have multiple file attachments, with thumbnails for previewing images and icons for PDFs. File deletion is available with confirmation to prevent accidental removal.
 
 ## Project Management
 
@@ -90,7 +106,7 @@ The workflow system is implemented with:
 ## Tech Stack
 
 - **Frontend**: Next.js, React, Tailwind CSS
-- **Backend**: Supabase (PostgreSQL, Auth, Realtime)
+- **Backend**: Supabase (PostgreSQL, Auth, Storage, Realtime)
 - **Deployment**: Vercel
 
 ## AI Automation
