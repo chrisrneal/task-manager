@@ -1,5 +1,6 @@
 import React from 'react';
 import { ProjectState, WorkflowTransition } from '@/types/database';
+import { ANY_STATE_UUID } from './WorkflowGraphEditor';
 
 /**
  * TransitionListSidebar displays a list of all transitions in a workflow
@@ -24,7 +25,7 @@ const TransitionListSidebar: React.FC<TransitionListSidebarProps> = ({
 }) => {
   // Get state name by ID for display
   const getStateName = (stateId: string | null) => {
-    if (stateId === null) return "Any State";
+    if (stateId === null || stateId === ANY_STATE_UUID) return "Any State";
     const state = states.find(s => s.id === stateId);
     return state ? state.name : "Unknown State";
   };
@@ -50,7 +51,7 @@ const TransitionListSidebar: React.FC<TransitionListSidebarProps> = ({
                   <span className="mx-2">→</span> 
                   {getStateName(transition.to_state)}
                 </span>
-                {transition.from_state === null && (
+                {(transition.from_state === null || transition.from_state === ANY_STATE_UUID) && (
                   <span className="ml-2 text-xs px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded">
                     Global
                   </span>

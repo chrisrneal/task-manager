@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ProjectState, Workflow, WorkflowStep, WorkflowTransition } from '@/types/database';
 import { supabase } from '@/utils/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import WorkflowGraphEditor from './WorkflowGraphEditor';
+import WorkflowGraphEditor, { ANY_STATE_UUID } from './WorkflowGraphEditor';
 import TransitionListSidebar from './TransitionListSidebar';
 
 /**
@@ -643,9 +643,15 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
   const handleCreateTransition = async (fromStateId: string | null, toStateId: string) => {
     if (!selectedWorkflow) return;
     
+    // Use placeholder UUID for "any state" transitions
+    const effectiveFromStateId = fromStateId === null ? ANY_STATE_UUID : fromStateId;
+    
     // Validate: Don't create duplicate transitions
     const isDuplicate = workflowTransitions.some(t => 
-      t.from_state === fromStateId && t.to_state === toStateId
+      (t.from_state === effectiveFromStateId || 
+       (t.from_state === null && effectiveFromStateId === ANY_STATE_UUID) ||
+       (t.from_state === ANY_STATE_UUID && effectiveFromStateId === null)) && 
+      t.to_state === toStateId
     );
     
     if (isDuplicate) {
@@ -660,7 +666,7 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
       // Update UI optimistically
       const newTransition: WorkflowTransition = {
         workflow_id: selectedWorkflow,
-        from_state: fromStateId,
+        from_state: effectiveFromStateId,
         to_state: toStateId
       };
       
@@ -678,7 +684,7 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
         .from('workflow_transitions')
         .insert([{
           workflow_id: selectedWorkflow,
-          from_state: fromStateId,
+          from_state: effectiveFromStateId,
           to_state: toStateId
         }]);
       
@@ -698,14 +704,22 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
   const handleDeleteTransition = async (fromStateId: string | null, toStateId: string) => {
     if (!selectedWorkflow) return;
     
+    // Handle both null and placeholder UUID cases
+    const effectiveFromStateId = fromStateId === null ? ANY_STATE_UUID : fromStateId;
+    
     try {
       const traceId = uuidv4();
       console.log(`[${traceId}] Deleting transition from ${fromStateId || 'any'} to ${toStateId}`);
       
       // Update UI optimistically
-      setWorkflowTransitions(prev => prev.filter(t => 
-        !(t.from_state === fromStateId && t.to_state === toStateId)
-      ));
+      setWorkflowTransitions(prev => prev.filter(t => {
+        // Check for both null and placeholder UUID
+        if (fromStateId === null || fromStateId === ANY_STATE_UUID) {
+          return !((t.from_state === null || t.from_state === ANY_STATE_UUID) && t.to_state === toStateId);
+        } else {
+          return !(t.from_state === fromStateId && t.to_state === toStateId);
+        }
+      }));
       
       // Delete from database
       const { data: sessionData } = await supabase.auth.getSession();
@@ -721,9 +735,9 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
         .eq('workflow_id', selectedWorkflow)
         .eq('to_state', toStateId);
       
-      // If from_state is null, we need to use 'is' instead of 'eq'
-      if (fromStateId === null) {
-        query.is('from_state', null);
+      // If from_state is null, we need to use 'eq' with the placeholder UUID
+      if (fromStateId === null || fromStateId === ANY_STATE_UUID) {
+        query.eq('from_state', ANY_STATE_UUID);
       } else {
         query.eq('from_state', fromStateId);
       }
@@ -755,7 +769,7 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
     
     // Check if this transition already exists
     const existingTransition = workflowTransitions.find(t => 
-      t.from_state === null && t.to_state === stateId
+      (t.from_state === null || t.from_state === ANY_STATE_UUID) && t.to_state === stateId
     );
     
     if (enabled && existingTransition) {
@@ -764,11 +778,11 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
     }
     
     if (enabled) {
-      // Create a new "any state" transition
-      await handleCreateTransition(null, stateId);
+      // Create a new "any state" transition using the placeholder UUID
+      await handleCreateTransition(ANY_STATE_UUID, stateId);
     } else if (existingTransition) {
       // Delete the existing "any state" transition
-      await handleDeleteTransition(null, stateId);
+      await handleDeleteTransition(ANY_STATE_UUID, stateId);
     }
   };
 
@@ -919,7 +933,7 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
                                     {index + 1}.
                                   </span>
                                   <span>{state.name}</span>
-                                  {workflowTransitions.some(t => t.from_state === null && t.to_state === state.id) && (
+                                  {workflowTransitions.some(t => (t.from_state === null || t.from_state === ANY_STATE_UUID) && t.to_state === state.id) && (
                                     <span className="ml-2 text-xs px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded">
                                       Any →
                                     </span>

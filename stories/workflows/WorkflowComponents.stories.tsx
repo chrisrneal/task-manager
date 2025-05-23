@@ -3,7 +3,7 @@ import { Meta, StoryObj } from '@storybook/react';
 import StateListEditor from '@/components/workflows/StateListEditor';
 import WorkflowBuilder from '@/components/workflows/WorkflowBuilder';
 import TaskTypeForm from '@/components/workflows/TaskTypeForm';
-import WorkflowGraphEditor from '@/components/workflows/WorkflowGraphEditor';
+import WorkflowGraphEditor, { ANY_STATE_UUID } from '@/components/workflows/WorkflowGraphEditor';
 import TransitionListSidebar from '@/components/workflows/TransitionListSidebar';
 import { WorkflowTransition } from '@/types/database';
 
@@ -138,15 +138,22 @@ export const TransitionEditor: StoryObj = {
     const [transitions, setTransitions] = useState<WorkflowTransition[]>(mockTransitions);
 
     const handleCreateTransition = (fromStateId: string | null, toStateId: string) => {
+      // Use the placeholder UUID for null values
+      const effectiveFromStateId = fromStateId === null ? ANY_STATE_UUID : fromStateId;
+      
       // Check for duplicates
-      if (transitions.some(t => t.from_state === fromStateId && t.to_state === toStateId)) {
+      if (transitions.some(t => 
+        (t.from_state === effectiveFromStateId || 
+         (t.from_state === null && effectiveFromStateId === ANY_STATE_UUID) ||
+         (t.from_state === ANY_STATE_UUID && effectiveFromStateId === null)) && 
+        t.to_state === toStateId)) {
         alert('This transition already exists.');
         return;
       }
       
       const newTransition: WorkflowTransition = {
         workflow_id: 'w1',
-        from_state: fromStateId,
+        from_state: effectiveFromStateId,
         to_state: toStateId
       };
       
@@ -155,27 +162,45 @@ export const TransitionEditor: StoryObj = {
     };
 
     const handleDeleteTransition = (fromStateId: string | null, toStateId: string) => {
-      setTransitions(transitions.filter(t => 
-        !(t.from_state === fromStateId && t.to_state === toStateId)
-      ));
+      // Handle both null and placeholder UUID cases
+      setTransitions(transitions.filter(t => {
+        // If fromStateId is null, match both null and ANY_STATE_UUID
+        if (fromStateId === null) {
+          return !(
+            (t.from_state === null || t.from_state === ANY_STATE_UUID) && 
+            t.to_state === toStateId
+          );
+        } 
+        // If fromStateId is ANY_STATE_UUID, match both null and ANY_STATE_UUID  
+        else if (fromStateId === ANY_STATE_UUID) {
+          return !(
+            (t.from_state === null || t.from_state === ANY_STATE_UUID) && 
+            t.to_state === toStateId
+          );
+        }
+        // Otherwise, exact match
+        else {
+          return !(t.from_state === fromStateId && t.to_state === toStateId);
+        }
+      }));
       console.log('Transition deleted:', { from: fromStateId, to: toStateId });
     };
 
     const handleToggleAnyStateTransition = (stateId: string, enabled: boolean) => {
       const existingAnyTransition = transitions.find(t => 
-        t.from_state === null && t.to_state === stateId
+        (t.from_state === null || t.from_state === ANY_STATE_UUID) && t.to_state === stateId
       );
       
       if (enabled && !existingAnyTransition) {
         const newTransition = {
           workflow_id: 'w1',
-          from_state: null,
+          from_state: ANY_STATE_UUID, // Use placeholder UUID instead of null
           to_state: stateId
         };
         setTransitions([...transitions, newTransition]);
       } else if (!enabled && existingAnyTransition) {
         setTransitions(transitions.filter(t => 
-          !(t.from_state === null && t.to_state === stateId)
+          !((t.from_state === null || t.from_state === ANY_STATE_UUID) && t.to_state === stateId)
         ));
       }
     };

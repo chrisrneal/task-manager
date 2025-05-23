@@ -11,6 +11,9 @@ import { ProjectState, WorkflowTransition } from '@/types/database';
  * - Interactive drag-and-drop interface for creating transitions
  */
 
+// Placeholder UUID for "any state" transitions
+export const ANY_STATE_UUID = '00000000-0000-0000-0000-000000000000';
+
 interface StateNode {
   id: string;
   name: string;
@@ -68,7 +71,7 @@ const WorkflowGraphEditor: React.FC<WorkflowGraphEditorProps> = ({
           name: state.name,
           x: 150 + col * 200,
           y: 100 + row * 120,
-          isAnyStateTarget: transitions.some(t => t.from_state === null && t.to_state === state.id)
+          isAnyStateTarget: transitions.some(t => t.from_state === null || t.from_state === ANY_STATE_UUID && t.to_state === state.id)
         };
       });
       
@@ -206,6 +209,7 @@ const WorkflowGraphEditor: React.FC<WorkflowGraphEditorProps> = ({
 
   // Handle toggling "any state" transition
   const handleToggleAnyTransition = (nodeId: string, checked: boolean) => {
+    // Use the ANY_STATE_UUID instead of null for "any state" transitions
     onToggleAnyStateTransition(nodeId, checked);
   };
 
@@ -261,7 +265,7 @@ const WorkflowGraphEditor: React.FC<WorkflowGraphEditorProps> = ({
     
     // "Any state" transitions
     transitions.forEach(transition => {
-      if (transition.from_state === null) {
+      if (transition.from_state === null || transition.from_state === ANY_STATE_UUID) {
         const toNode = getNodeById(transition.to_state);
         
         if (toNode) {
