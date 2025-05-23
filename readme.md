@@ -1,12 +1,12 @@
 <p align="center">
-	<img alt="Rice Bowl" src="public/images/icon-512.png" width="90">
-	<h2 align="center">Next PWA Template</h2>
+	<img alt="Task Manager" src="public/images/icon-512.png" width="90">
+	<h2 align="center">Task Manager</h2>
 </p>
 
-<p align="center">Fluffless app template to inspire less</p>
+<p align="center">A modern, workflow-driven task management application</p>
 
 <p align="center">
-	<a href="https://next-pwa-template.now.sh">Live demo</a>
+	<a href="https://task-manager-demo.vercel.app">Live demo</a>
 </p>
 
 <p align="center">
@@ -17,31 +17,67 @@
 
 ## Features
 
-- ✨ Fluffless PWA using Next 13
-- 🌗 Lovely night/day themes
-- 🦄 Easily removable [nice-to-haves](#use-only-what-you-need)
-- 📱 Native-like mobile experience
-- 📦 Neatly wrapped like that avocado you got for christmas
+- ✨ Modern PWA using Next.js
+- 🌗 Dark and light themes
+- 📱 Responsive design for all devices
+- 🔄 Real-time updates with Supabase
+- 🔐 Secure authentication
+- 📊 Customizable project dashboards
+- 🚀 Dynamic task board with workflow states
+- 🔄 Workflow-driven task transitions
+
+## Task Management
+
+The application allows users to:
+
+- Create and manage projects
+- Add tasks with details like name, description, priority, and due date
+- Organize tasks in customizable boards
+- Track task progress through workflows
+
+## Workflow System
+
+### Key Features
+
+- **Dynamic Board Columns**: Task boards render columns from workflow states instead of hardcoded statuses
+- **Workflow State Transitions**: Tasks can only move to valid next states in their workflow
+- **Task Type Integration**: Changing a task's type automatically updates its workflow and resets to the first state
+- **Two-layer Validation**:
+  - Frontend: UI only shows valid state options based on current workflow position
+  - Backend: Database constraints validate state transitions server-side
+
+### How It Works
+
+1. Each project can have multiple task types (e.g., Bug, Feature, Epic)
+2. Task types are associated with specific workflows
+3. Workflows define a sequence of states (columns on the board)
+4. When creating or editing a task:
+   - Selecting a task type assigns its workflow
+   - Only valid state transitions are allowed
+   - Changing task type resets the workflow state
+
+### Technical Implementation
+
+The workflow system is implemented with:
+
+- Database schema with `workflows`, `workflow_steps`, `task_types`, and `project_states` tables
+- PostgreSQL trigger function to validate state transitions
+- React components for dynamic board rendering
+- Frontend logic to manage workflow state changes
 
 ## Getting started
 
-1. [Use this template](https://github.com/mvllow/next-pwa-template/generate)
-2. Replace `public/images` with your own
-3. Enjoy ✨
+1. Clone the repository
+2. Install dependencies with `npm install`
+3. Set up your Supabase environment variables
+4. Run the development server with `npm run dev`
+5. Visit `http://localhost:3000` to see the app
 
-## Use only what you need
+## Tech Stack
 
-Fluffless doesn't mean "start with nothing". The goal of this template is to be an entry into maintainable apps.
-
-**The essentials**
-
-- Typescript, made easy with Next.js
-- [tailwindcss](https://github.com/tailwindlabs/tailwindcss) for utility-first styling
-- [next-pwa](https://github.com/shadowwalker/next-pwa) for offline support
-
-**Nice to haves**
-
-- [next-themes](https://github.com/pacocoursey/next-themes) or similar for low stress theming
+- **Frontend**: Next.js, React, Tailwind CSS
+- **Backend**: Supabase (PostgreSQL, Auth, Realtime)
+- **Deployment**: Vercel
 
 ## AI Automation
 
@@ -50,15 +86,3 @@ This repository is configured for GitHub Copilot to help maintain documentation 
 - Copilot may suggest or open PRs that update documentation to reflect code changes
 - All PRs will be reviewed through the normal process
 - Copilot follows the existing code standards and styles in the repository
-
-## Gallery
-
-### Desktop
-
-<img width="1728" alt="Rice Bowl PWA on macOS in dark mode" src="https://github.com/mvllow/next-pwa-template/assets/1474821/889bef1b-af58-4efa-b1f3-3ea021ec9760">
-
-### Mobile
-
-<img width="360" alt="Rice Bowl PWA on iOS in light mode" src="https://github.com/mvllow/next-pwa-template/assets/1474821/1f0fa36e-23c7-4bcf-aa6e-f447559cae62" />
-
-<img width="360" alt="Rice Bowl PWA on iOS in dark mode" src="https://github.com/mvllow/next-pwa-template/assets/1474821/2fac61d0-dc29-4022-8b39-003306f80fb4" />
