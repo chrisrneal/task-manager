@@ -36,7 +36,7 @@ erDiagram
     
     workflow_transitions {
         uuid workflow_id PK,FK
-        uuid from_state PK,FK
+        uuid from_state FK
         uuid to_state PK,FK
     }
     

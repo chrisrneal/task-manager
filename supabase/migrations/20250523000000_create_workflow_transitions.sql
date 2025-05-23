@@ -3,7 +3,10 @@ CREATE TABLE workflow_transitions (
   workflow_id  uuid REFERENCES workflows(id) ON DELETE CASCADE,
   from_state   uuid REFERENCES project_states(id) ON DELETE CASCADE NULL,
   to_state     uuid REFERENCES project_states(id) ON DELETE CASCADE NOT NULL,
-  PRIMARY KEY (workflow_id, from_state, to_state)
+  -- Remove from_state from PRIMARY KEY to allow NULL values
+  -- Create a compound primary key for workflow_id and to_state when from_state is NULL
+  -- For non-NULL from_state, create a different constraint
+  PRIMARY KEY (workflow_id, COALESCE(from_state, '00000000-0000-0000-0000-000000000000'), to_state)
 );
 
 -- Enable Row Level Security
