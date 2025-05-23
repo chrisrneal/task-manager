@@ -120,6 +120,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         throw projectError;
       }
 
+      const { task_type_id, state_id } = req.body;
+      
       const insertPayload = {
         name,
         description: description || null,
@@ -127,7 +129,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         owner_id: user.id,
         status: status || 'todo',
         priority: priority || 'medium',
-        due_date: due_date || null
+        due_date: due_date || null,
+        task_type_id: task_type_id || null,
+        state_id: state_id || null
       };
       
       console.log(`[${traceId}] Insert payload:`, insertPayload);

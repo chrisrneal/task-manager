@@ -10,6 +10,32 @@ export interface Project {
   user_id: string;
 }
 
+export interface ProjectState {
+  id: string;
+  project_id: string;
+  name: string;
+  position: number;
+}
+
+export interface Workflow {
+  id: string;
+  project_id: string;
+  name: string;
+}
+
+export interface WorkflowStep {
+  workflow_id: string;
+  state_id: string;
+  step_order: number;
+}
+
+export interface TaskType {
+  id: string;
+  project_id: string;
+  name: string;
+  workflow_id: string;
+}
+
 export interface Task {
   id: string;
   name: string;
@@ -21,6 +47,8 @@ export interface Task {
   due_date: string | null;
   created_at: string;
   updated_at: string;
+  task_type_id: string | null;
+  state_id: string | null;
 }
 
 export interface Subtask {
@@ -36,6 +64,10 @@ export interface Subtask {
 
 export interface Database {
   projects: Project[];
+  project_states: ProjectState[];
+  workflows: Workflow[];
+  workflow_steps: WorkflowStep[];
+  task_types: TaskType[];
   tasks: Task[];
   subtasks: Subtask[];
 }
