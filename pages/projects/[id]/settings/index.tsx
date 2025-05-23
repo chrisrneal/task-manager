@@ -176,7 +176,7 @@ const ProjectSettings = () => {
     setNameUpdateSuccess(false);
     
     // Store original name for rollback if needed
-    const originalName = project?.name;
+    const originalName = project?.name || '';
     
     // Optimistic update
     setProject(prev => prev ? { ...prev, name: editedProjectName } : null);
@@ -309,7 +309,7 @@ const ProjectSettings = () => {
               </div>
               {nameUpdateSuccess && (
                 <p className="text-green-500 text-sm my-2">
-                  Project renamed to "{editedProjectName}"
+                  Project renamed to &quot;{editedProjectName}&quot;
                 </p>
               )}
             </form>
