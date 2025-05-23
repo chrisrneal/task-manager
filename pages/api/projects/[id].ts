@@ -99,8 +99,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .from('projects')
         .update({ 
           name, 
-          description: description || null,
-          updated_at: new Date().toISOString()
+          description: description || null
+          // Removed updated_at field as it's likely managed by the database
         })
         .eq('id', id)
         .eq('user_id', user.id)

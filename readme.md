@@ -32,6 +32,7 @@
 The application allows users to:
 
 - Create and manage projects
+- Edit project names and descriptions from Project Settings (for project owners and admins)
 - Add tasks with details like name, description, priority, and due date
 - Organize tasks in customizable boards
 - Track task progress through workflows
@@ -50,6 +51,19 @@ The application allows users to:
 ### Implementation
 
 Files can be uploaded to tasks using a drag-and-drop interface. Each task can have multiple file attachments, with thumbnails for previewing images and icons for PDFs. File deletion is available with confirmation to prevent accidental removal.
+
+## Project Management
+
+### Project Settings
+
+Project owners and administrators can access the Project Settings page to:
+
+- **Edit Project Details**: Update the project name and description
+- **Manage Workflow States**: Configure custom states for task organization
+- **Create Workflows**: Define sequences of states for different task types
+- **Configure Task Types**: Set up different task types (Bug, Feature, Epic, etc.) with associated workflows
+
+Access to project settings is restricted to project owners and users with admin privileges.
 
 ## Workflow System
 
