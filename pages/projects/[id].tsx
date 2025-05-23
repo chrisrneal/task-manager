@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import Page from '@/components/page';
 import Section from '@/components/section';
 import { useAuth } from '@/components/AuthContext';
@@ -482,12 +483,20 @@ const ProjectDetail = () => {
               <p className="text-zinc-600 dark:text-zinc-400 mt-1">{project.description}</p>
             )}
           </div>
-          <button
-            onClick={() => router.push('/projects')}
-            className="px-3 py-1 bg-gray-200 text-gray-800 dark:bg-zinc-700 dark:text-zinc-300 rounded-md hover:bg-gray-300 dark:hover:bg-zinc-600 text-sm"
-          >
-            Back to Projects
-          </button>
+          <div className="flex space-x-2">
+            <Link
+              href={`/projects/${projectId}/settings/workflows`}
+              className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-800/30 dark:text-indigo-300 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-800/50 text-sm"
+            >
+              Workflows Settings
+            </Link>
+            <button
+              onClick={() => router.push('/projects')}
+              className="px-3 py-1 bg-gray-200 text-gray-800 dark:bg-zinc-700 dark:text-zinc-300 rounded-md hover:bg-gray-300 dark:hover:bg-zinc-600 text-sm"
+            >
+              Back to Projects
+            </button>
+          </div>
         </div>
 
         {/* Tasks Section */}
