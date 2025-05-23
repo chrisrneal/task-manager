@@ -67,7 +67,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle PUT request - Update a task
     if (method === 'PUT') {
-      const { name, description, status, priority, due_date } = req.body;
+      const { name, description, status, priority, due_date, task_type_id, state_id } = req.body;
       
       if (!name) {
         console.log(`[${traceId}] Error: Missing required field 'name'`);
@@ -104,6 +104,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           status: status || existingTask.status,
           priority: priority || existingTask.priority,
           due_date: due_date || existingTask.due_date,
+          task_type_id: task_type_id !== undefined ? task_type_id : existingTask.task_type_id,
+          state_id: state_id !== undefined ? state_id : existingTask.state_id,
           updated_at: new Date().toISOString()
         })
         .eq('id', id)

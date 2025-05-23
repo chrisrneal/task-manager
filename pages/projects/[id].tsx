@@ -244,7 +244,9 @@ const ProjectDetail = () => {
         priority: taskPriority,
         due_date: taskDueDate || null,
         created_at: isEditing ? currentTask!.created_at : new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        task_type_id: isEditing ? currentTask!.task_type_id : null,
+        state_id: isEditing ? currentTask!.state_id : null
       };
       
       if (isEditing) {
