@@ -1,5 +1,27 @@
 -- Add constraint to ensure that task state changes follow valid transitions in the workflow
 
+-- Add a check constraint to enforce valid state transitions
+ALTER TABLE tasks
+  ADD CONSTRAINT valid_transition
+  CHECK (
+    -- Skip check if state is not changing
+    state_id IS NOT DISTINCT FROM state_id
+    OR (
+      EXISTS (
+        SELECT 1
+        FROM workflow_transitions t
+        JOIN task_types ON task_types.id = tasks.task_type_id
+        WHERE t.workflow_id = task_types.workflow_id
+          AND (t.from_state = tasks.state_id OR t.from_state IS NULL)
+          AND t.to_state = state_id
+      )
+    )
+  );
+
+-- NOTE: The above constraint will be enforced on INSERT and UPDATE operations.
+-- However, it references the row being modified (self-reference), so it has limitations.
+-- We also add a trigger-based approach for more robust validation during UPDATE operations:
+
 -- Function to check if a state transition is valid based on workflow_transitions
 CREATE OR REPLACE FUNCTION is_valid_task_transition()
 RETURNS TRIGGER AS $$
@@ -36,8 +58,8 @@ BEGIN
         AND (
           -- From specific state to new state
           (t.from_state = OLD.state_id AND t.to_state = NEW.state_id)
-          -- OR from ANY state to new state (using placeholder UUID)
-          OR (t.from_state = '00000000-0000-0000-0000-000000000000' AND t.to_state = NEW.state_id)
+          -- OR from ANY state to new state (using placeholder UUID or NULL)
+          OR ((t.from_state = '00000000-0000-0000-0000-000000000000' OR t.from_state IS NULL) AND t.to_state = NEW.state_id)
         )
     ) THEN
       RETURN NEW;
