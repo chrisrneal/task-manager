@@ -939,7 +939,16 @@ const ProjectDetail = () => {
                           const { taskId } = data;
                           const taskToMove = tasks.find(t => t.id === taskId);
                           if (taskToMove && taskToMove.status !== TASK_STATUSES.TODO) {
-                            handleToggleTaskStatus(taskId, taskToMove.status);
+                            // Check if this transition is valid according to workflow rules
+                            const validStates = getNextValidStates(taskToMove);
+                            const todoState = states.find(s => s.name.toLowerCase().includes('todo') || s.name.toLowerCase().includes('backlog'));
+                            
+                            // Only allow transition if it's valid in the workflow or if no workflow states defined
+                            if (!todoState || validStates.some(s => s.id === todoState.id) || validStates.length === states.length) {
+                              handleToggleTaskStatus(taskId, taskToMove.status);
+                            } else {
+                              console.warn('Invalid workflow transition attempted');
+                            }
                           }
                         } catch (err) {
                           console.error('Error in drop handling:', err);
@@ -1015,34 +1024,43 @@ const ProjectDetail = () => {
                           const { taskId } = data;
                           const taskToMove = tasks.find(t => t.id === taskId);
                           if (taskToMove && taskToMove.status !== TASK_STATUSES.IN_PROGRESS) {
-                            // Update the task to "in progress"
-                            const newStatus = TASK_STATUSES.IN_PROGRESS;
-                            const updatedTask = { ...taskToMove, status: newStatus, updated_at: new Date().toISOString() };
-                            setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+                            // Check if this transition is valid according to workflow rules
+                            const validStates = getNextValidStates(taskToMove);
+                            const inProgressState = states.find(s => s.name.toLowerCase().includes('progress') || s.name.toLowerCase().includes('doing'));
                             
-                            // Call API to update
-                            // Get the current session token
-                            supabase.auth.getSession().then(({ data: sessionData }) => {
-                              fetch(`/api/tasks/${taskId}`, {
-                                method: 'PUT',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  'Authorization': 'Bearer ' + sessionData.session?.access_token
-                                },
-                                body: JSON.stringify({
-                                name: taskToMove.name,
-                                description: taskToMove.description,
-                                status: newStatus,
-                                priority: taskToMove.priority,
-                                due_date: taskToMove.due_date
-                              })
+                            // Only allow transition if it's valid in the workflow or if no workflow states defined
+                            if (!inProgressState || validStates.some(s => s.id === inProgressState.id) || validStates.length === states.length) {
+                              // Update the task to "in progress"
+                              const newStatus = TASK_STATUSES.IN_PROGRESS;
+                              const updatedTask = { ...taskToMove, status: newStatus, updated_at: new Date().toISOString() };
+                              setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+                              
+                              // Call API to update
+                              // Get the current session token
+                              supabase.auth.getSession().then(({ data: sessionData }) => {
+                                fetch(`/api/tasks/${taskId}`, {
+                                  method: 'PUT',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer ' + sessionData.session?.access_token
+                                  },
+                                  body: JSON.stringify({
+                                  name: taskToMove.name,
+                                  description: taskToMove.description,
+                                  status: newStatus,
+                                  priority: taskToMove.priority,
+                                  due_date: taskToMove.due_date
+                                })
+                              }).catch(err => {
+                                console.error('Error updating task status:', err);
+                                fetchTasks(); // Revert on error
+                              });
                             }).catch(err => {
-                              console.error('Error updating task status:', err);
-                              fetchTasks(); // Revert on error
+                              console.error('Error getting session:', err);
                             });
-                          }).catch(err => {
-                            console.error('Error getting session:', err);
-                          });
+                            } else {
+                              console.warn('Invalid workflow transition attempted');
+                            }
                           }
                         } catch (err) {
                           console.error('Error in drop handling:', err);
@@ -1118,7 +1136,16 @@ const ProjectDetail = () => {
                           const { taskId } = data;
                           const taskToMove = tasks.find(t => t.id === taskId);
                           if (taskToMove && taskToMove.status !== TASK_STATUSES.DONE) {
-                            handleToggleTaskStatus(taskId, taskToMove.status);
+                            // Check if this transition is valid according to workflow rules
+                            const validStates = getNextValidStates(taskToMove);
+                            const doneState = states.find(s => s.name.toLowerCase().includes('done') || s.name.toLowerCase().includes('complete'));
+                            
+                            // Only allow transition if it's valid in the workflow or if no workflow states defined
+                            if (!doneState || validStates.some(s => s.id === doneState.id) || validStates.length === states.length) {
+                              handleToggleTaskStatus(taskId, taskToMove.status);
+                            } else {
+                              console.warn('Invalid workflow transition attempted');
+                            }
                           }
                         } catch (err) {
                           console.error('Error in drop handling:', err);
