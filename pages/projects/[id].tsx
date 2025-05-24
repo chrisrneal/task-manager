@@ -188,8 +188,8 @@ const ProjectDetail = () => {
     const validTransitions = transitions.filter(t => 
       // From the current state
       t.from_state === task.state_id || 
-      // Or from "any state" (using placeholder UUID)
-      t.from_state === ANY_STATE_UUID
+      // Or from "any state" (using placeholder UUID or NULL)
+      t.from_state === ANY_STATE_UUID || t.from_state === null
     );
     
     // Always allow staying in the current state
