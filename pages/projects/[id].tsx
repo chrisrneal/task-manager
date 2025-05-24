@@ -171,18 +171,20 @@ const ProjectDetail = () => {
     const currentStateIndex = workflowStates.findIndex(s => s.id === task.state_id);
     if (currentStateIndex === -1) return workflowStates;
     
-    // For drag and drop, allow all workflow states as valid destinations
-    if (forDragAndDrop) {
-      return workflowStates;
-    }
+    // Calculate valid states based on workflow transition rules
+    const validStates = [];
     
-    // For other operations (like editing), use stricter rules
-    // Next state is the one that follows in the workflow
-    // Allow also staying in current state
-    const validStates = [workflowStates[currentStateIndex]];
+    // Always include the current state
+    validStates.push(workflowStates[currentStateIndex]);
     
+    // Allow moving to the next state (forward)
     if (currentStateIndex < workflowStates.length - 1) {
       validStates.push(workflowStates[currentStateIndex + 1]);
+    }
+    
+    // Allow moving to the previous state (backward)
+    if (currentStateIndex > 0) {
+      validStates.push(workflowStates[currentStateIndex - 1]);
     }
     
     return validStates;
