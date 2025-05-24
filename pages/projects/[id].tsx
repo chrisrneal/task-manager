@@ -150,7 +150,7 @@ const ProjectDetail = () => {
   };
 
   // Get the next valid states for a task
-  const getNextValidStates = (task: Task): ProjectState[] => {
+  const getNextValidStates = (task: Task, forDragAndDrop: boolean = false): ProjectState[] => {
     if (!task.task_type_id) return states;
     
     const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
@@ -171,6 +171,12 @@ const ProjectDetail = () => {
     const currentStateIndex = workflowStates.findIndex(s => s.id === task.state_id);
     if (currentStateIndex === -1) return workflowStates;
     
+    // For drag and drop, allow all workflow states as valid destinations
+    if (forDragAndDrop) {
+      return workflowStates;
+    }
+    
+    // For other operations (like editing), use stricter rules
     // Next state is the one that follows in the workflow
     // Allow also staying in current state
     const validStates = [workflowStates[currentStateIndex]];
@@ -651,8 +657,8 @@ const ProjectDetail = () => {
     // Find the task being dragged
     const task = tasks.find(t => t.id === taskId);
     if (task) {
-      // Get valid next states for this task
-      const nextStates = getNextValidStates(task);
+      // Get valid next states for this task, including all workflow states for drag and drop
+      const nextStates = getNextValidStates(task, true);
       setValidDropStates(nextStates.map(s => s.id));
     }
     
@@ -693,7 +699,7 @@ const ProjectDetail = () => {
       if (!taskToMove) return;
       
       // Verify this is a valid transition
-      const validStates = getNextValidStates(taskToMove);
+      const validStates = getNextValidStates(taskToMove, true);
       if (!validStates.some(s => s.id === targetStateId)) {
         console.warn('Invalid state transition attempted');
         return;
@@ -940,7 +946,7 @@ const ProjectDetail = () => {
                           const taskToMove = tasks.find(t => t.id === taskId);
                           if (taskToMove && taskToMove.status !== TASK_STATUSES.TODO) {
                             // Check if this transition is valid according to workflow rules
-                            const validStates = getNextValidStates(taskToMove);
+                            const validStates = getNextValidStates(taskToMove, true);
                             const todoState = states.find(s => s.name.toLowerCase().includes('todo') || s.name.toLowerCase().includes('backlog'));
                             
                             // Only allow transition if it's valid in the workflow or if no workflow states defined
@@ -1025,7 +1031,7 @@ const ProjectDetail = () => {
                           const taskToMove = tasks.find(t => t.id === taskId);
                           if (taskToMove && taskToMove.status !== TASK_STATUSES.IN_PROGRESS) {
                             // Check if this transition is valid according to workflow rules
-                            const validStates = getNextValidStates(taskToMove);
+                            const validStates = getNextValidStates(taskToMove, true);
                             const inProgressState = states.find(s => s.name.toLowerCase().includes('progress') || s.name.toLowerCase().includes('doing'));
                             
                             // Only allow transition if it's valid in the workflow or if no workflow states defined
@@ -1137,7 +1143,7 @@ const ProjectDetail = () => {
                           const taskToMove = tasks.find(t => t.id === taskId);
                           if (taskToMove && taskToMove.status !== TASK_STATUSES.DONE) {
                             // Check if this transition is valid according to workflow rules
-                            const validStates = getNextValidStates(taskToMove);
+                            const validStates = getNextValidStates(taskToMove, true);
                             const doneState = states.find(s => s.name.toLowerCase().includes('done') || s.name.toLowerCase().includes('complete'));
                             
                             // Only allow transition if it's valid in the workflow or if no workflow states defined
