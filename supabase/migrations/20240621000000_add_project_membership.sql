@@ -44,10 +44,6 @@ CREATE POLICY project_members_update_policy ON project_members
       AND role = 'owner'
     )
     OR auth.jwt() ->> 'role' = 'admin'
-  )
-  WITH CHECK (
-    -- Cannot change the owner's role (will be enforced by trigger)
-    (old.role = 'owner' AND new.role = 'owner') OR old.role != 'owner'
   );
 
 -- Policy: Project owners can delete members
@@ -134,7 +130,7 @@ CREATE POLICY projects_select_policy ON projects
 -- Policy: Users can insert projects (they automatically become the owner)
 CREATE POLICY projects_insert_policy ON projects 
   FOR INSERT 
-  WITH CHECK (auth.uid() = new.user_id);
+  WITH CHECK (auth.uid() IS NOT NULL);
 
 -- Policy: Users can update projects they own or admin
 CREATE POLICY projects_update_policy ON projects 
