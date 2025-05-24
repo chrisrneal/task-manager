@@ -635,6 +635,117 @@ const ProjectDetail = () => {
     return grouped;
   };
 
+  // State for drag and drop
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [validDropStates, setValidDropStates] = useState<string[]>([]);
+  
+  // Handle drag start event
+  const handleDragStart = (e: React.DragEvent, taskId: string, stateId: string, taskTypeId: string | null) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      taskId,
+      sourceStateId: stateId,
+      taskTypeId
+    }));
+    setDraggedTaskId(taskId);
+    
+    // Find the task being dragged
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      // Get valid next states for this task
+      const nextStates = getNextValidStates(task);
+      setValidDropStates(nextStates.map(s => s.id));
+    }
+    
+    e.currentTarget.classList.add('opacity-50');
+  };
+  
+  // Handle drag end event
+  const handleDragEnd = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove('opacity-50');
+    setDraggedTaskId(null);
+    setValidDropStates([]);
+  };
+  
+  // Handle drag over event
+  const handleDragOver = (e: React.DragEvent, stateId: string) => {
+    e.preventDefault();
+    if (validDropStates.includes(stateId)) {
+      e.dataTransfer.dropEffect = 'move';
+    } else {
+      e.dataTransfer.dropEffect = 'none';
+    }
+  };
+  
+  // Handle drop event
+  const handleDrop = async (e: React.DragEvent, targetStateId: string) => {
+    e.preventDefault();
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const { taskId, sourceStateId, taskTypeId } = data;
+      
+      if (sourceStateId === targetStateId) {
+        return; // No change needed
+      }
+      
+      // Find the task being moved
+      const taskToMove = tasks.find(t => t.id === taskId);
+      if (!taskToMove) return;
+      
+      // Verify this is a valid transition
+      const validStates = getNextValidStates(taskToMove);
+      if (!validStates.some(s => s.id === targetStateId)) {
+        console.warn('Invalid state transition attempted');
+        return;
+      }
+      
+      // Update optimistically in the UI
+      const updatedTask = { 
+        ...taskToMove,
+        state_id: targetStateId,
+        updated_at: new Date().toISOString()
+      };
+      
+      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+      
+      // Then update in the database
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          name: taskToMove.name,
+          description: taskToMove.description,
+          status: taskToMove.status,
+          priority: taskToMove.priority,
+          due_date: taskToMove.due_date,
+          state_id: targetStateId
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      console.log(`Task ${taskId} moved from state ${sourceStateId} to ${targetStateId}`);
+      
+    } catch (err: any) {
+      console.error('Error moving task:', err.message);
+      setError('Failed to move task. Please try again.');
+      // Revert the optimistic update
+      fetchTasks();
+    }
+  };
+
   // Task groups by state
   const groupedTasks = groupTasksByState();
 
@@ -730,13 +841,30 @@ const ProjectDetail = () => {
                       {state.name} ({(groupedTasks[state.id] || []).length})
                     </h4>
                     {(groupedTasks[state.id] || []).length === 0 ? (
-                      <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in this state</p>
+                      <p 
+                        className={`text-zinc-500 dark:text-zinc-500 text-sm italic p-4 border-2 border-dashed rounded-md ${
+                          validDropStates.includes(state.id) ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20' : 'border-transparent'
+                        }`}
+                        onDragOver={(e) => handleDragOver(e, state.id)}
+                        onDrop={(e) => handleDrop(e, state.id)}
+                      >
+                        No tasks in this state
+                      </p>
                     ) : (
-                      <div className="space-y-2">
+                      <div 
+                        className={`space-y-2 p-2 rounded-md ${
+                          validDropStates.includes(state.id) ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-dashed border-indigo-300 dark:border-indigo-700' : ''
+                        }`}
+                        onDragOver={(e) => handleDragOver(e, state.id)}
+                        onDrop={(e) => handleDrop(e, state.id)}
+                      >
                         {(groupedTasks[state.id] || []).map(task => (
                           <div
                             key={task.id}
-                            className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                            className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, task.id, state.id, task.task_type_id)}
+                            onDragEnd={handleDragEnd}
                           >
                             <div className="flex-grow">
                               <h5 className="font-medium">
@@ -798,7 +926,26 @@ const ProjectDetail = () => {
                   {!groupedTasks[TASK_STATUSES.TODO] || groupedTasks[TASK_STATUSES.TODO].length === 0 ? (
                     <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks to do</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div 
+                      className="space-y-2 todo-drop-zone p-2 rounded-md"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        try {
+                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                          const { taskId } = data;
+                          const taskToMove = tasks.find(t => t.id === taskId);
+                          if (taskToMove && taskToMove.status !== TASK_STATUSES.TODO) {
+                            handleToggleTaskStatus(taskId, taskToMove.status);
+                          }
+                        } catch (err) {
+                          console.error('Error in drop handling:', err);
+                        }
+                      }}
+                    >
                       {groupedTasks[TASK_STATUSES.TODO].map(task => (
                         <div
                           key={task.id}
@@ -855,7 +1002,48 @@ const ProjectDetail = () => {
                   {!groupedTasks[TASK_STATUSES.IN_PROGRESS] || groupedTasks[TASK_STATUSES.IN_PROGRESS].length === 0 ? (
                     <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in progress</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div 
+                      className="space-y-2 inprogress-drop-zone p-2 rounded-md"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        try {
+                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                          const { taskId } = data;
+                          const taskToMove = tasks.find(t => t.id === taskId);
+                          if (taskToMove && taskToMove.status !== TASK_STATUSES.IN_PROGRESS) {
+                            // Update the task to "in progress"
+                            const newStatus = TASK_STATUSES.IN_PROGRESS;
+                            const updatedTask = { ...taskToMove, status: newStatus, updated_at: new Date().toISOString() };
+                            setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+                            
+                            // Call API to update
+                            fetch(`/api/tasks/${taskId}`, {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + sessionData.session?.access_token
+                              },
+                              body: JSON.stringify({
+                                name: taskToMove.name,
+                                description: taskToMove.description,
+                                status: newStatus,
+                                priority: taskToMove.priority,
+                                due_date: taskToMove.due_date
+                              })
+                            }).catch(err => {
+                              console.error('Error updating task status:', err);
+                              fetchTasks(); // Revert on error
+                            });
+                          }
+                        } catch (err) {
+                          console.error('Error in drop handling:', err);
+                        }
+                      }}
+                    >
                       {groupedTasks[TASK_STATUSES.IN_PROGRESS].map(task => (
                         <div
                           key={task.id}
@@ -912,7 +1100,26 @@ const ProjectDetail = () => {
                   {!groupedTasks[TASK_STATUSES.DONE] || groupedTasks[TASK_STATUSES.DONE].length === 0 ? (
                     <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No completed tasks</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div 
+                      className="space-y-2 done-drop-zone p-2 rounded-md"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        try {
+                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                          const { taskId } = data;
+                          const taskToMove = tasks.find(t => t.id === taskId);
+                          if (taskToMove && taskToMove.status !== TASK_STATUSES.DONE) {
+                            handleToggleTaskStatus(taskId, taskToMove.status);
+                          }
+                        } catch (err) {
+                          console.error('Error in drop handling:', err);
+                        }
+                      }}
+                    >
                       {groupedTasks[TASK_STATUSES.DONE].map(task => (
                         <div
                           key={task.id}
