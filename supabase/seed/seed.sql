@@ -51,3 +51,26 @@ SET
 WHERE project_id = (SELECT id FROM projects LIMIT 1)
 AND id NOT IN (SELECT id FROM tasks WHERE task_type_id IS NOT NULL)
 LIMIT 1;
+
+-- Sample project members (assuming auth.users and projects exist)
+-- Note: The actual owner of the project is added automatically by a trigger
+-- These are additional members we'll add for testing
+
+-- Get a random user that isn't the owner of the first project as admin
+INSERT INTO project_members (project_id, user_id, role)
+VALUES (
+  (SELECT id FROM projects LIMIT 1),
+  (SELECT id FROM auth.users WHERE id != (SELECT user_id FROM projects LIMIT 1) LIMIT 1),
+  'admin'
+);
+
+-- Get another random user that isn't the owner or the admin as a regular member
+INSERT INTO project_members (project_id, user_id, role)
+VALUES (
+  (SELECT id FROM projects LIMIT 1),
+  (SELECT id FROM auth.users 
+   WHERE id != (SELECT user_id FROM projects LIMIT 1) 
+   AND id NOT IN (SELECT user_id FROM project_members WHERE project_id = (SELECT id FROM projects LIMIT 1))
+   LIMIT 1),
+  'member'
+);
