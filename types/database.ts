@@ -10,6 +10,16 @@ export interface Project {
   user_id: string;
 }
 
+export type ProjectMemberRole = 'owner' | 'admin' | 'member';
+
+export interface ProjectMember {
+  project_id: string;
+  user_id: string;
+  role: ProjectMemberRole;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProjectState {
   id: string;
   project_id: string;
@@ -77,4 +87,5 @@ export interface Database {
   task_types: TaskType[];
   tasks: Task[];
   subtasks: Subtask[];
+  project_members: ProjectMember[];
 }

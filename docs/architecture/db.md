@@ -15,6 +15,14 @@ erDiagram
         uuid user_id FK
     }
     
+    project_members {
+        uuid project_id PK,FK
+        uuid user_id PK
+        enum role
+        timestamp created_at
+        timestamp updated_at
+    }
+    
     project_states {
         uuid id PK
         uuid project_id FK
@@ -83,6 +91,7 @@ erDiagram
         timestamp updated_at
     }
     
+    projects ||--o{ project_members : "has many"
     projects ||--o{ tasks : "has many"
     tasks ||--o{ subtasks : "has many"
     tasks ||--o{ task_files : "has many"
@@ -102,6 +111,7 @@ erDiagram
 ## Relationships
 
 - A **project** belongs to a user and can have many tasks, project states, workflows, and task types
+- A **project** can have many **project members** with different roles (owner, admin, member)
 - A **project state** belongs to a project and can be used in multiple workflow steps and workflow transitions
 - A **workflow** belongs to a project and contains multiple workflow steps and workflow transitions
 - A **workflow step** defines a state in a workflow with a specific order
@@ -117,8 +127,17 @@ All tables implement Row-Level Security with the following policies:
 
 ### Projects Table RLS
 
-- **SELECT/UPDATE/DELETE**: Allowed when `auth.uid() = user_id` OR role = `admin`
+- **SELECT**: Allowed when user is in project_members table for the project OR role = `admin`
+- **UPDATE**: Allowed when user is in project_members table with role 'owner' or 'admin' OR role = `admin`
+- **DELETE**: Allowed when user is in project_members table with role 'owner' OR role = `admin`
 - **INSERT**: Allowed when `auth.uid() = new.user_id`
+
+### Project Membership RLS
+
+- **SELECT**: Allowed when `auth.uid() = user_id` OR role = `admin`
+- **INSERT**: Allowed when user is the 'owner' of the project OR role = `admin`
+- **UPDATE**: Allowed when user is the 'owner' of the project OR role = `admin` (with constraint that a project must always have at least one owner)
+- **DELETE**: Allowed when user is the 'owner' of the project OR role = `admin` (with constraint that a project must always have at least one owner)
 
 ### Tasks Table RLS
 
@@ -132,7 +151,7 @@ All tables implement Row-Level Security with the following policies:
 
 ### Project States, Workflows, Workflow Steps, Workflow Transitions, Task Types RLS
 
-- **SELECT/UPDATE/DELETE/INSERT**: Policies inherit from the Projects table, allowing access when the user is the owner of the related project or is an admin.
+- **SELECT/UPDATE/DELETE/INSERT**: Policies inherit from the Projects table, allowing access when the user is a member of the related project or is an admin.
 
 ### Task Files Table RLS
 
@@ -201,4 +220,37 @@ The task management system supports a flexible transition graph model where task
 
             Any state can transition to a specific state (e.g., Cancelled)
                       using placeholder UUID for from_state
+```
+
+## Project Membership
+
+The project membership system enables multiple users to collaborate on projects with different permission levels:
+
+### Roles and Permissions
+
+- **Owner**: Full control over the project, including deleting the project, managing members, and all CRUD operations
+- **Admin**: Can manage project content and settings, but cannot delete the project or manage member roles
+- **Member**: Can view project content and perform limited operations based on task ownership
+
+### Key Constraints
+
+- Each project must have exactly one owner at all times
+- The owner role cannot be changed or removed unless another owner exists
+- Ownership transfer requires first adding a new owner, then changing or removing the original owner
+
+### Example Policy
+
+```sql
+-- Check if user has appropriate role for the operation
+CREATE POLICY project_update_policy ON projects 
+  FOR UPDATE 
+  USING (
+    EXISTS (
+      SELECT 1 FROM project_members
+      WHERE project_id = projects.id
+      AND user_id = auth.uid()
+      AND role IN ('owner', 'admin')
+    )
+    OR auth.jwt() ->> 'role' = 'admin'
+  );
 ```
