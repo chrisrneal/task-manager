@@ -7,7 +7,7 @@ import Page from '@/components/page';
 import Section from '@/components/section';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import { Project, Task, ProjectState, TaskType, Workflow, WorkflowStep } from '@/types/database';
+import { Project, Task, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 
 // Task statuses for organization (legacy, kept for fallback)
@@ -32,6 +32,7 @@ const ProjectDetail = () => {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [states, setStates] = useState<ProjectState[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
+  const [workflowTransitions, setWorkflowTransitions] = useState<WorkflowTransition[]>([]);
   
   // Task form state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -113,6 +114,16 @@ const ProjectDetail = () => {
         if (stepsError) throw stepsError;
         
         setWorkflowSteps(stepsData || []);
+
+        // Fetch workflow transitions
+        const { data: transitionsData, error: transitionsError } = await supabase
+          .from('workflow_transitions')
+          .select('*')
+          .in('workflow_id', workflowIds);
+
+        if (transitionsError) throw transitionsError;
+        
+        setWorkflowTransitions(transitionsData || []);
       }
       
       console.log(`[${traceId}] Workflow data fetched successfully`);
@@ -159,33 +170,41 @@ const ProjectDetail = () => {
     const workflow = workflows.find(w => w.id === taskType.workflow_id);
     if (!workflow) return states;
     
-    const workflowStates = getWorkflowStates(workflow.id);
+    const workflowStatesMap = getWorkflowStates(workflow.id)
+      .reduce((map, state) => {
+        map[state.id] = state;
+        return map;
+      }, {} as Record<string, ProjectState>);
     
     // If task doesn't have a state, first state is valid
     if (!task.state_id) {
-      const firstState = workflowStates.length > 0 ? [workflowStates[0]] : [];
+      const firstState = Object.values(workflowStatesMap).length > 0 
+        ? [Object.values(workflowStatesMap)[0]] 
+        : [];
       return firstState;
     }
     
-    // Find current state's position in workflow
-    const currentStateIndex = workflowStates.findIndex(s => s.id === task.state_id);
-    if (currentStateIndex === -1) return workflowStates;
-    
-    // Calculate valid states based on workflow transition rules
-    const validStates = [];
+    // For drag and drop, use workflow transitions to determine valid target states
+    const validStates: ProjectState[] = [];
     
     // Always include the current state
-    validStates.push(workflowStates[currentStateIndex]);
-    
-    // Allow moving to the next state (forward)
-    if (currentStateIndex < workflowStates.length - 1) {
-      validStates.push(workflowStates[currentStateIndex + 1]);
+    if (workflowStatesMap[task.state_id]) {
+      validStates.push(workflowStatesMap[task.state_id]);
     }
     
-    // Allow moving to the previous state (backward)
-    if (currentStateIndex > 0) {
-      validStates.push(workflowStates[currentStateIndex - 1]);
-    }
+    // Get all valid transitions for this workflow
+    const relevantTransitions = workflowTransitions.filter(t => 
+      t.workflow_id === workflow.id && 
+      (t.from_state === task.state_id || t.from_state === null)
+    );
+    
+    // Add all valid transition target states
+    relevantTransitions.forEach(transition => {
+      if (workflowStatesMap[transition.to_state] && 
+          !validStates.some(s => s.id === transition.to_state)) {
+        validStates.push(workflowStatesMap[transition.to_state]);
+      }
+    });
     
     return validStates;
   };
@@ -659,7 +678,7 @@ const ProjectDetail = () => {
     // Find the task being dragged
     const task = tasks.find(t => t.id === taskId);
     if (task) {
-      // Get valid next states for this task, including all workflow states for drag and drop
+      // Get valid next states for this task using workflow transitions
       const nextStates = getNextValidStates(task, true);
       setValidDropStates(nextStates.map(s => s.id));
     }
@@ -700,7 +719,7 @@ const ProjectDetail = () => {
       const taskToMove = tasks.find(t => t.id === taskId);
       if (!taskToMove) return;
       
-      // Verify this is a valid transition
+      // Verify this is a valid transition using workflow transitions
       const validStates = getNextValidStates(taskToMove, true);
       if (!validStates.some(s => s.id === targetStateId)) {
         console.warn('Invalid state transition attempted');
