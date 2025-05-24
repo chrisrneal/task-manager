@@ -1021,13 +1021,15 @@ const ProjectDetail = () => {
                             setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
                             
                             // Call API to update
-                            fetch(`/api/tasks/${taskId}`, {
-                              method: 'PUT',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Bearer ' + sessionData.session?.access_token
-                              },
-                              body: JSON.stringify({
+                            // Get the current session token
+                            supabase.auth.getSession().then(({ data: sessionData }) => {
+                              fetch(`/api/tasks/${taskId}`, {
+                                method: 'PUT',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': 'Bearer ' + sessionData.session?.access_token
+                                },
+                                body: JSON.stringify({
                                 name: taskToMove.name,
                                 description: taskToMove.description,
                                 status: newStatus,
@@ -1038,6 +1040,9 @@ const ProjectDetail = () => {
                               console.error('Error updating task status:', err);
                               fetchTasks(); // Revert on error
                             });
+                          }).catch(err => {
+                            console.error('Error getting session:', err);
+                          });
                           }
                         } catch (err) {
                           console.error('Error in drop handling:', err);
