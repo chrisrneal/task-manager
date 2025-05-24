@@ -802,15 +802,8 @@ const ProjectDetail = () => {
                       {groupedTasks[TASK_STATUSES.TODO].map(task => (
                         <div
                           key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
                         >
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                            className="mt-1 mr-3"
-                            aria-label={`Mark ${task.name} as done`}
-                          />
                           <div className="flex-grow">
                             <h5 className="font-medium">
                               <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
@@ -866,15 +859,8 @@ const ProjectDetail = () => {
                       {groupedTasks[TASK_STATUSES.IN_PROGRESS].map(task => (
                         <div
                           key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
                         >
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                            className="mt-1 mr-3"
-                            aria-label={`Mark ${task.name} as done`}
-                          />
                           <div className="flex-grow">
                             <h5 className="font-medium">
                               <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
@@ -930,15 +916,8 @@ const ProjectDetail = () => {
                       {groupedTasks[TASK_STATUSES.DONE].map(task => (
                         <div
                           key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start opacity-70"
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move opacity-70"
                         >
-                          <input
-                            type="checkbox"
-                            checked={true}
-                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                            className="mt-1 mr-3"
-                            aria-label={`Mark ${task.name} as not done`}
-                          />
                           <div className="flex-grow">
                             <h5 className="font-medium line-through">
                               <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
