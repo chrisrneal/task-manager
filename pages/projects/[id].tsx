@@ -7,7 +7,7 @@ import Page from '@/components/page';
 import Section from '@/components/section';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import { Project, Task, ProjectState, TaskType, Workflow, WorkflowStep } from '@/types/database';
+import { Project, Task, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 
 // Task statuses for organization (legacy, kept for fallback)
@@ -16,6 +16,9 @@ const TASK_STATUSES = {
   IN_PROGRESS: 'in_progress',
   DONE: 'done'
 };
+
+// Placeholder UUID for "any state" transitions
+const ANY_STATE_UUID = '00000000-0000-0000-0000-000000000000';
 
 const ProjectDetail = () => {
   const router = useRouter();
@@ -32,6 +35,7 @@ const ProjectDetail = () => {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [states, setStates] = useState<ProjectState[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
+  const [workflowTransitions, setWorkflowTransitions] = useState<WorkflowTransition[]>([]);
   
   // Task form state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -113,6 +117,16 @@ const ProjectDetail = () => {
         if (stepsError) throw stepsError;
         
         setWorkflowSteps(stepsData || []);
+        
+        // Fetch workflow transitions
+        const { data: transitionsData, error: transitionsError } = await supabase
+          .from('workflow_transitions')
+          .select('*')
+          .in('workflow_id', workflowIds);
+          
+        if (transitionsError) throw transitionsError;
+        
+        setWorkflowTransitions(transitionsData || []);
       }
       
       console.log(`[${traceId}] Workflow data fetched successfully`);
@@ -167,16 +181,36 @@ const ProjectDetail = () => {
       return firstState;
     }
     
-    // Find current state's position in workflow
-    const currentStateIndex = workflowStates.findIndex(s => s.id === task.state_id);
-    if (currentStateIndex === -1) return workflowStates;
+    // Get the transitions for this workflow
+    const transitions = workflowTransitions.filter(t => t.workflow_id === workflow.id);
     
-    // Next state is the one that follows in the workflow
-    // Allow also staying in current state
-    const validStates = [workflowStates[currentStateIndex]];
+    // Find valid transitions from current state
+    const validTransitions = transitions.filter(t => 
+      // From the current state
+      t.from_state === task.state_id || 
+      // Or from "any state" (using placeholder UUID)
+      t.from_state === ANY_STATE_UUID
+    );
     
-    if (currentStateIndex < workflowStates.length - 1) {
-      validStates.push(workflowStates[currentStateIndex + 1]);
+    // Always allow staying in the current state
+    const currentState = workflowStates.find(s => s.id === task.state_id);
+    const validStates = currentState ? [currentState] : [];
+    
+    // Add all allowed destination states
+    validTransitions.forEach(transition => {
+      const destinationState = workflowStates.find(s => s.id === transition.to_state);
+      if (destinationState && !validStates.some(s => s.id === destinationState.id)) {
+        validStates.push(destinationState);
+      }
+    });
+    
+    // If no transitions found (including ANY state transitions), 
+    // fallback to allowing the next sequential state
+    if (validStates.length === 1 && currentState) {
+      const currentStateIndex = workflowStates.findIndex(s => s.id === task.state_id);
+      if (currentStateIndex !== -1 && currentStateIndex < workflowStates.length - 1) {
+        validStates.push(workflowStates[currentStateIndex + 1]);
+      }
     }
     
     return validStates;
