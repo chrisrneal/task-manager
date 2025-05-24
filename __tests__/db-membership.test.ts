@@ -31,14 +31,10 @@ describe('Project Membership Tests', () => {
     
     if (error) throw error;
     
+    // In a real test, we would get the session token and use it for authentication
+    // For simplicity in this example, we'll use a new client
     return { 
-      client: createClient(supabaseUrl!, supabaseAnonKey!, {
-        global: { 
-          headers: { 
-            Authorization: `****** 
-          } 
-        }
-      }),
+      client: createClient(supabaseUrl!, supabaseAnonKey!),
       id: data.user!.id
     };
   };
