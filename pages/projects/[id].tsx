@@ -34,6 +34,7 @@ const ProjectDetail = () => {
   const [states, setStates] = useState<ProjectState[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
   const [workflowTransitions, setWorkflowTransitions] = useState<WorkflowTransition[]>([]);
+  const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([]);
   
   // Task form state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -354,6 +355,16 @@ const ProjectDetail = () => {
       fetchProjectWorkflowData();
     }
   }, [user, projectId, project, fetchProjectWorkflowData]);
+
+  // Update workflow states whenever states change
+  useEffect(() => {
+    if (states.length > 0) {
+      setWorkflowStates(states.map(state => ({
+        id: state.id,
+        name: state.name
+      })));
+    }
+  }, [states]);
 
   // Handle opening the task modal for creating a new task
   const handleAddTask = () => {
@@ -1264,7 +1275,10 @@ const ProjectDetail = () => {
                 mode={taskFormMode}
                 projectId={projectId as string}
                 taskTypeId={taskTypeId}
+                stateId={taskStateId}
                 initialValues={currentTask || undefined}
+                taskTypes={taskTypes}
+                workflowStates={workflowStates}
                 onSubmit={async (task) => {
                   try {
                     // Start submission

@@ -92,6 +92,7 @@ export default function TaskDetail() {
 						mode="view"
 						projectId={task.project_id}
 						taskTypeId={task.task_type_id}
+						stateId={task.state_id}
 						initialValues={taskWithFieldValues}
 						onSubmit={handleTaskFormSubmit}
 						onCancel={handleTaskFormCancel}

@@ -87,6 +87,16 @@ export const Create: Story = {
     mode: 'create',
     projectId: 'project-1',
     taskTypeId: 'task-type-1',
+    stateId: 'state-1',
+    taskTypes: [
+      { id: 'task-type-1', name: 'Bug', project_id: 'project-1', workflow_id: 'workflow-1' },
+      { id: 'task-type-2', name: 'Feature', project_id: 'project-1', workflow_id: 'workflow-1' }
+    ],
+    workflowStates: [
+      { id: 'state-1', name: 'To Do' },
+      { id: 'state-2', name: 'In Progress' },
+      { id: 'state-3', name: 'Done' }
+    ],
     onSubmit: (task: TaskWithFieldValues) => console.log('Submit:', task),
     onCancel: () => console.log('Cancel clicked'),
   },
@@ -97,6 +107,16 @@ export const Edit: Story = {
     mode: 'edit',
     projectId: 'project-1',
     taskTypeId: 'task-type-1',
+    stateId: 'state-1',
+    taskTypes: [
+      { id: 'task-type-1', name: 'Bug', project_id: 'project-1', workflow_id: 'workflow-1' },
+      { id: 'task-type-2', name: 'Feature', project_id: 'project-1', workflow_id: 'workflow-1' }
+    ],
+    workflowStates: [
+      { id: 'state-1', name: 'To Do' },
+      { id: 'state-2', name: 'In Progress' },
+      { id: 'state-3', name: 'Done' }
+    ],
     initialValues: {
       id: 'task-1',
       name: 'Sample Task',
@@ -128,6 +148,16 @@ export const ViewOnly: Story = {
     mode: 'view',
     projectId: 'project-1',
     taskTypeId: 'task-type-1',
+    stateId: 'state-1',
+    taskTypes: [
+      { id: 'task-type-1', name: 'Bug', project_id: 'project-1', workflow_id: 'workflow-1' },
+      { id: 'task-type-2', name: 'Feature', project_id: 'project-1', workflow_id: 'workflow-1' }
+    ],
+    workflowStates: [
+      { id: 'state-1', name: 'To Do' },
+      { id: 'state-2', name: 'In Progress' },
+      { id: 'state-3', name: 'Done' }
+    ],
     initialValues: {
       id: 'task-1',
       name: 'Sample Task',

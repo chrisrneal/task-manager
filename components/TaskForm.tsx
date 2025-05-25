@@ -1,25 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectFields } from '@/hooks/useProjectFields';
 import { supabase } from '@/utils/supabaseClient';
-import { Field, Task, TaskFieldValue, TaskWithFieldValues } from '@/types/database';
+import { Field, Task, TaskFieldValue, TaskWithFieldValues, TaskType } from '@/types/database';
 import { validateFieldValueType } from '@/utils/customFieldUtils';
 
 interface TaskFormProps {
   mode: 'create' | 'edit' | 'view';
   projectId: string | undefined | null;
   taskTypeId: string | null;
+  stateId?: string | null;
   initialValues?: TaskWithFieldValues;
   onSubmit: (task: TaskWithFieldValues) => void;
   onCancel: () => void;
+  taskTypes?: TaskType[];
+  workflowStates?: { id: string, name: string }[];
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
   mode,
   projectId,
   taskTypeId,
+  stateId,
   initialValues,
   onSubmit,
-  onCancel
+  onCancel,
+  taskTypes = [],
+  workflowStates = []
 }) => {
   // State for standard task fields
   const [name, setName] = useState(initialValues?.name || '');
@@ -27,6 +33,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const [status, setStatus] = useState(initialValues?.status || 'todo');
   const [priority, setPriority] = useState(initialValues?.priority || 'medium');
   const [dueDate, setDueDate] = useState(initialValues?.due_date || '');
+  const [selectedTaskTypeId, setSelectedTaskTypeId] = useState(taskTypeId);
+  const [selectedStateId, setSelectedStateId] = useState(stateId || null);
   
   // State for custom fields
   const [fieldValues, setFieldValues] = useState<{ [key: string]: string }>({});
@@ -34,7 +42,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   
   // Get field definitions
-  const { fields, loading: fieldsLoading, error: fieldsError } = useProjectFields(projectId, taskTypeId);
+  const { fields, loading: fieldsLoading, error: fieldsError } = useProjectFields(projectId, selectedTaskTypeId);
   
   // Initialize field values from initialValues
   useEffect(() => {
@@ -102,8 +110,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
       status,
       priority,
       due_date: dueDate || null,
-      task_type_id: taskTypeId,
-      state_id: initialValues?.state_id || null,
+      task_type_id: selectedTaskTypeId,
+      state_id: selectedStateId,
       project_id: projectId || '',
       owner_id: initialValues?.owner_id || '',
       created_at: initialValues?.created_at || new Date().toISOString(),
@@ -343,6 +351,52 @@ const TaskForm: React.FC<TaskFormProps> = ({
           } dark:border-zinc-600`}
           disabled={isViewOnly}
         />
+      </div>
+      
+      {/* Task Type */}
+      <div>
+        <label htmlFor="taskType" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+          Task Type
+        </label>
+        <select
+          id="taskType"
+          value={selectedTaskTypeId || ''}
+          onChange={(e) => setSelectedTaskTypeId(e.target.value || null)}
+          className={`w-full p-2 border rounded-md ${
+            isViewOnly ? 'bg-gray-100 dark:bg-zinc-800 cursor-not-allowed' : 'dark:bg-zinc-700'
+          } dark:border-zinc-600`}
+          disabled={isViewOnly}
+        >
+          <option value="">Select a task type</option>
+          {taskTypes.map(type => (
+            <option key={type.id} value={type.id}>
+              {type.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      
+      {/* State */}
+      <div>
+        <label htmlFor="taskState" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+          State
+        </label>
+        <select
+          id="taskState"
+          value={selectedStateId || ''}
+          onChange={(e) => setSelectedStateId(e.target.value || null)}
+          className={`w-full p-2 border rounded-md ${
+            isViewOnly ? 'bg-gray-100 dark:bg-zinc-800 cursor-not-allowed' : 'dark:bg-zinc-700'
+          } dark:border-zinc-600`}
+          disabled={isViewOnly}
+        >
+          <option value="">Select a state</option>
+          {workflowStates.map(state => (
+            <option key={state.id} value={state.id}>
+              {state.name}
+            </option>
+          ))}
+        </select>
       </div>
       
       {/* Custom Fields */}
