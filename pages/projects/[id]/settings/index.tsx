@@ -7,13 +7,8 @@ import Page from '@/components/page';
 import Section from '@/components/section';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import { Project, ProjectState, Workflow, TaskType } from '@/types/database';
+import { Project } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
-
-// Import workflow components
-import StateListEditor from '@/components/workflows/StateListEditor';
-import WorkflowBuilder from '@/components/workflows/WorkflowBuilder';
-import TaskTypeForm from '@/components/workflows/TaskTypeForm';
 
 const ProjectSettings = () => {
   const router = useRouter();
@@ -21,9 +16,6 @@ const ProjectSettings = () => {
   const { user, loading } = useAuth();
   
   const [project, setProject] = useState<Project | null>(null);
-  const [states, setStates] = useState<ProjectState[]>([]);
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -85,7 +77,7 @@ const ProjectSettings = () => {
     checkAuth();
   }, [user, loading, projectId, router]);
 
-  // Fetch states, workflows, and task types for the project
+  // Fetch project data
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !projectId || !isAdmin) return;
@@ -95,48 +87,14 @@ const ProjectSettings = () => {
       
       try {
         const traceId = uuidv4();
-        console.log(`[${traceId}] Fetching workflow data for project: ${projectId}`);
+        console.log(`[${traceId}] Fetching project data: ${projectId}`);
         
-        // Get the session token
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
+        // Project data already loaded in checkAuth
         
-        if (!token) {
-          throw new Error('No authentication token available');
-        }
-        
-        // Fetch project states
-        const { data: statesData, error: statesError } = await supabase
-          .from('project_states')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('position');
-          
-        if (statesError) throw statesError;
-        setStates(statesData || []);
-        
-        // Fetch workflows
-        const { data: workflowsData, error: workflowsError } = await supabase
-          .from('workflows')
-          .select('*')
-          .eq('project_id', projectId);
-          
-        if (workflowsError) throw workflowsError;
-        setWorkflows(workflowsData || []);
-        
-        // Fetch task types
-        const { data: taskTypesData, error: taskTypesError } = await supabase
-          .from('task_types')
-          .select('*')
-          .eq('project_id', projectId);
-          
-        if (taskTypesError) throw taskTypesError;
-        setTaskTypes(taskTypesData || []);
-        
-        console.log(`[${traceId}] Fetched workflow data successfully`);
+        console.log(`[${traceId}] Fetched project data successfully`);
       } catch (err: any) {
-        console.error('Error fetching workflow data:', err.message);
-        setError('Failed to load workflow data');
+        console.error('Error fetching project data:', err.message);
+        setError('Failed to load project data');
       } finally {
         setIsLoading(false);
       }
@@ -144,21 +102,6 @@ const ProjectSettings = () => {
 
     fetchData();
   }, [user, projectId, isAdmin]);
-
-  // Handler to update states
-  const handleStatesChange = (updatedStates: ProjectState[]) => {
-    setStates(updatedStates);
-  };
-
-  // Handler to update workflows
-  const handleWorkflowsChange = (updatedWorkflows: Workflow[]) => {
-    setWorkflows(updatedWorkflows);
-  };
-
-  // Handler to update task types
-  const handleTaskTypesChange = (updatedTaskTypes: TaskType[]) => {
-    setTaskTypes(updatedTaskTypes);
-  };
   
   // Handler to update project details (name and description)
   const handleUpdateProjectName = async (e: React.FormEvent) => {
@@ -290,6 +233,28 @@ const ProjectSettings = () => {
             Back to Project
           </Link>
         </div>
+        
+        {/* Settings Navigation */}
+        <div className="flex space-x-4 mb-6">
+          <Link
+            href={`/projects/${projectId}/settings`}
+            className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            General
+          </Link>
+          <Link
+            href={`/projects/${projectId}/settings/fields`}
+            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          >
+            Fields
+          </Link>
+          <Link
+            href={`/projects/${projectId}/settings/workflows`}
+            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          >
+            Workflows
+          </Link>
+        </div>
 
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
@@ -347,47 +312,6 @@ const ProjectSettings = () => {
                 </p>
               )}
             </form>
-          </div>
-
-          {/* States Section */}
-          <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
-            <h3 className="font-medium mb-4">States</h3>
-            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">
-              Add, rename, or reorder the states that tasks can be in.
-            </p>
-            <StateListEditor 
-              projectId={projectId as string} 
-              states={states}
-              onStatesChange={handleStatesChange}
-            />
-          </div>
-
-          {/* Workflows Section */}
-          <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
-            <h3 className="font-medium mb-4">Workflows</h3>
-            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">
-              Create workflows by dragging states into a sequence.
-            </p>
-            <WorkflowBuilder 
-              projectId={projectId as string}
-              states={states}
-              workflows={workflows}
-              onWorkflowsChange={handleWorkflowsChange}
-            />
-          </div>
-
-          {/* Task Types Section */}
-          <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
-            <h3 className="font-medium mb-4">Task Types</h3>
-            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">
-              Define task types and assign each to a specific workflow.
-            </p>
-            <TaskTypeForm 
-              projectId={projectId as string}
-              workflows={workflows}
-              taskTypes={taskTypes}
-              onTaskTypesChange={handleTaskTypesChange}
-            />
           </div>
         </div>
       </Section>
