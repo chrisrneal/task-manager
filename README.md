@@ -18,11 +18,21 @@ A modern task management application built with Next.js, TypeScript, and Supabas
 - [x] User authentication
 - [x] Custom fields implementation
 - [x] Workflow management
+- [x] Data migration from legacy columns to custom fields
 
 ### In Progress
-- [ ] Migration & Data Backfill
 - [ ] Advanced reporting
 - [ ] Mobile application
+
+## Migration Checklist
+
+### Custom Fields Migration
+- [ ] Run migration script on staging database
+- [ ] Verify all data successfully migrated
+- [ ] Confirm API endpoints work with new structure
+- [ ] Run migration script on production database
+- [ ] Validate production data integrity
+- [ ] Update documentation to reflect changes
 
 ## Getting Started
 
