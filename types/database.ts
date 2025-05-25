@@ -78,6 +78,27 @@ export interface Subtask {
   updated_at: string;
 }
 
+export interface Field {
+  id: string;
+  project_id: string;
+  name: string;
+  input_type: string;
+  is_required: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskTypeField {
+  task_type_id: string;
+  field_id: string;
+}
+
+export interface TaskFieldValue {
+  task_id: string;
+  field_id: string;
+  value: string;
+}
+
 export interface Database {
   projects: Project[];
   project_states: ProjectState[];
@@ -88,4 +109,7 @@ export interface Database {
   tasks: Task[];
   subtasks: Subtask[];
   project_members: ProjectMember[];
+  fields: Field[];
+  task_type_fields: TaskTypeField[];
+  task_field_values: TaskFieldValue[];
 }
