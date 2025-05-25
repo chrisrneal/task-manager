@@ -97,6 +97,7 @@ export const Create: Story = {
       { id: 'state-2', name: 'In Progress' },
       { id: 'state-3', name: 'Done' }
     ],
+    validNextStates: ['state-1', 'state-2'],
     onSubmit: (task: TaskWithFieldValues) => console.log('Submit:', task),
     onCancel: () => console.log('Cancel clicked'),
   },
@@ -117,6 +118,7 @@ export const Edit: Story = {
       { id: 'state-2', name: 'In Progress' },
       { id: 'state-3', name: 'Done' }
     ],
+    validNextStates: ['state-1', 'state-2', 'state-3'],
     initialValues: {
       id: 'task-1',
       name: 'Sample Task',
@@ -158,6 +160,7 @@ export const ViewOnly: Story = {
       { id: 'state-2', name: 'In Progress' },
       { id: 'state-3', name: 'Done' }
     ],
+    validNextStates: ['state-1'],
     initialValues: {
       id: 'task-1',
       name: 'Sample Task',

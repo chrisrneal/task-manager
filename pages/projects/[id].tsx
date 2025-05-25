@@ -47,6 +47,7 @@ const ProjectDetail = () => {
   const [taskDueDate, setTaskDueDate] = useState('');
   const [taskTypeId, setTaskTypeId] = useState<string | null>(null);
   const [taskStateId, setTaskStateId] = useState<string | null>(null);
+  const [validNextStates, setValidNextStates] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Auth protection
@@ -365,6 +366,24 @@ const ProjectDetail = () => {
       })));
     }
   }, [states]);
+  
+  // Update valid next states when task type changes (for create mode)
+  useEffect(() => {
+    if (taskFormMode === 'create' && taskTypeId) {
+      // For a new task with a selected type, get the first state of the workflow
+      const taskType = taskTypes.find(tt => tt.id === taskTypeId);
+      if (taskType) {
+        const firstState = getFirstWorkflowState(taskType.workflow_id);
+        if (firstState) {
+          setValidNextStates([firstState.id]);
+          // Auto-select the first state
+          setTaskStateId(firstState.id);
+        } else {
+          setValidNextStates([]);
+        }
+      }
+    }
+  }, [taskFormMode, taskTypeId, taskTypes]);
 
   // Handle opening the task modal for creating a new task
   const handleAddTask = () => {
@@ -372,6 +391,8 @@ const ProjectDetail = () => {
     setCurrentTask(null);
     setTaskTypeId(null);
     setTaskStateId(null);
+    // For new tasks, we'll set valid states later when a task type is selected
+    setValidNextStates([]);
     setIsTaskModalOpen(true);
   };
 
@@ -381,6 +402,10 @@ const ProjectDetail = () => {
     setCurrentTask({...task, field_values: []});
     setTaskTypeId(task.task_type_id);
     setTaskStateId(task.state_id);
+    
+    // Calculate valid next states for this task based on workflow transitions
+    const nextStates = getNextValidStates(task);
+    setValidNextStates(nextStates.map(state => state.id));
     
     // If task has a type, fetch its field values
     if (task.task_type_id) {
@@ -1279,6 +1304,7 @@ const ProjectDetail = () => {
                 initialValues={currentTask || undefined}
                 taskTypes={taskTypes}
                 workflowStates={workflowStates}
+                validNextStates={validNextStates}
                 onSubmit={async (task) => {
                   try {
                     // Start submission

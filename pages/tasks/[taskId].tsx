@@ -94,6 +94,7 @@ export default function TaskDetail() {
 						taskTypeId={task.task_type_id}
 						stateId={task.state_id}
 						initialValues={taskWithFieldValues}
+						validNextStates={[task.state_id || '']}
 						onSubmit={handleTaskFormSubmit}
 						onCancel={handleTaskFormCancel}
 					/>

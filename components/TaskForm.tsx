@@ -14,6 +14,7 @@ interface TaskFormProps {
   onCancel: () => void;
   taskTypes?: TaskType[];
   workflowStates?: { id: string, name: string }[];
+  validNextStates?: string[]; // IDs of states that are valid transitions
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
@@ -25,7 +26,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
   onSubmit,
   onCancel,
   taskTypes = [],
-  workflowStates = []
+  workflowStates = [],
+  validNextStates = []
 }) => {
   // State for standard task fields
   const [name, setName] = useState(initialValues?.name || '');
@@ -391,11 +393,23 @@ const TaskForm: React.FC<TaskFormProps> = ({
           disabled={isViewOnly}
         >
           <option value="">Select a state</option>
-          {workflowStates.map(state => (
-            <option key={state.id} value={state.id}>
-              {state.name}
-            </option>
-          ))}
+          {workflowStates
+            .filter(state => 
+              // In view mode, only show the current state
+              isViewOnly 
+                ? state.id === selectedStateId 
+                // In create/edit mode:
+                // - If validNextStates is provided and not empty, filter by it
+                // - Otherwise show all states (backwards compatibility)
+                : validNextStates.length > 0
+                  ? validNextStates.includes(state.id)
+                  : true
+            )
+            .map(state => (
+              <option key={state.id} value={state.id}>
+                {state.name}
+              </option>
+            ))}
         </select>
       </div>
       
