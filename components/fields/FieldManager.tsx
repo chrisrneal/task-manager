@@ -34,7 +34,7 @@ const FieldManager: React.FC<FieldManagerProps> = ({ projectId, taskTypes }) => 
   const [dragOverField, setDragOverField] = useState<string | null>(null);
 
   // Fetch fields for the project
-  const fetchFields = async () => {
+  const fetchFields = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -73,7 +73,7 @@ const FieldManager: React.FC<FieldManagerProps> = ({ projectId, taskTypes }) => 
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
 
   // Setup real-time subscription for fields
   useEffect(() => {
@@ -100,7 +100,7 @@ const FieldManager: React.FC<FieldManagerProps> = ({ projectId, taskTypes }) => 
     return () => {
       subscription.unsubscribe();
     };
-  }, [projectId]);
+  }, [projectId, fetchFields]);
 
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
