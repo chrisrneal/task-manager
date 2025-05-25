@@ -370,6 +370,43 @@ const ProjectDetail = () => {
     setCurrentTask(task);
     setTaskTypeId(task.task_type_id);
     setTaskStateId(task.state_id);
+    
+    // If task has a type, fetch its field values
+    if (task.task_type_id) {
+      try {
+        // Get the session token
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        
+        if (!token) {
+          throw new Error('No authentication token available');
+        }
+        
+        const response = await fetch(`/api/tasks/${task.id}/field-values`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching field values: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Update the current task with the field values
+        setCurrentTask({
+          ...task,
+          field_values: result.data || []
+        });
+      } catch (err: any) {
+        console.error('Error fetching task field values:', err.message);
+        // Continue with the modal even if field values can't be fetched
+      }
+    }
+    
     setIsTaskModalOpen(true);
   };
 

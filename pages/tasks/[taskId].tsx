@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
-import { supabase } from '../../utils/supabaseClient'
-import FileUpload from '../../components/FileUpload'
+import { supabase } from '@/utils/supabaseClient'
+import FileUpload from '@/components/FileUpload'
 import TaskForm from '@/components/TaskForm'
 import { Task, TaskFieldValue } from '@/types/database'
 
