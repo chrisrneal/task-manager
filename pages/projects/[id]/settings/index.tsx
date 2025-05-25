@@ -243,6 +243,12 @@ const ProjectSettings = () => {
             General
           </Link>
           <Link
+            href={`/projects/${projectId}/settings/members`}
+            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          >
+            Members
+          </Link>
+          <Link
             href={`/projects/${projectId}/settings/fields`}
             className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
           >
