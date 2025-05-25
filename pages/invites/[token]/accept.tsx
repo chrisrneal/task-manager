@@ -42,7 +42,7 @@ const InviteAcceptPage = () => {
       
       try {
         const traceId = uuidv4();
-        console.log(`[${traceId}] Fetching invitation details for token: ${token}`);
+        console.log('[' + traceId + '] Fetching invitation details for token: ${token}');
         
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData?.session?.access_token;
@@ -53,7 +53,7 @@ const InviteAcceptPage = () => {
         
         const response = await fetch(`/api/invites/${token}/accept`, {
           headers: {
-            'Authorization': `******          }
+            'Authorization': `******` }
         });
         
         if (!response.ok) {
@@ -69,10 +69,10 @@ const InviteAcceptPage = () => {
         
         // If the invite is already accepted or declined, show a message
         if (data.status !== 'pending') {
-          setMessage(`This invitation has already been ${data.status}`);
+          setMessage('This invitation has already been ' + data.status);
         }
         
-        console.log(`[${traceId}] Invitation details fetched successfully`);
+        console.log('[' + traceId + '] Invitation details fetched successfully');
       } catch (err: any) {
         console.error('Error fetching invitation:', err.message);
         setError(err.message || 'Failed to load invitation details');
@@ -93,7 +93,7 @@ const InviteAcceptPage = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Accepting invitation: ${token}`);
+      console.log('[' + traceId + '] Accepting invitation: ${token}');
       
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
@@ -106,7 +106,7 @@ const InviteAcceptPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******        }
+          'Authorization': `******` }
       });
       
       if (!response.ok) {
@@ -140,7 +140,7 @@ const InviteAcceptPage = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Declining invitation: ${token}`);
+      console.log('[' + traceId + '] Declining invitation: ${token}');
       
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
@@ -153,7 +153,7 @@ const InviteAcceptPage = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******        },
+          'Authorization': `******` },
         body: JSON.stringify({ action: 'decline' })
       });
       
@@ -163,7 +163,7 @@ const InviteAcceptPage = () => {
       }
       
       const { message } = await response.json();
-      console.log(`[${traceId}] Invitation declined successfully`);
+      console.log('[' + traceId + '] Invitation declined successfully');
       
       setMessage(message || 'You have declined the invitation');
       

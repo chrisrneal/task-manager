@@ -98,7 +98,7 @@ const ProjectMembersSettings = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Fetching project members and invites: ${projectId}`);
+      console.log('[' + traceId + '] Fetching project members and invites: ${projectId}');
       
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -110,11 +110,11 @@ const ProjectMembersSettings = () => {
       // Fetch members
       const membersResponse = await fetch(`/api/projects/${projectId}/members`, {
         headers: {
-          'Authorization': `******        }
+          'Authorization': `******` }
       });
       
       if (!membersResponse.ok) {
-        throw new Error(`Failed to fetch members: ${membersResponse.statusText}`);
+        throw new Error('Failed to fetch members: ' + membersResponse.statusText);
       }
       
       const membersData = await membersResponse.json();
@@ -123,17 +123,17 @@ const ProjectMembersSettings = () => {
       // Fetch invites
       const invitesResponse = await fetch(`/api/projects/${projectId}/invite`, {
         headers: {
-          'Authorization': `******        }
+          'Authorization': `******` }
       });
       
       if (!invitesResponse.ok) {
-        throw new Error(`Failed to fetch invites: ${invitesResponse.statusText}`);
+        throw new Error('Failed to fetch invites: ' + invitesResponse.statusText + '');
       }
       
       const invitesData = await invitesResponse.json();
       setInvites(invitesData.data || []);
       
-      console.log(`[${traceId}] Fetched ${membersData.data?.length || 0} members and ${invitesData.data?.length || 0} invites`);
+      console.log('[' + traceId + '] Fetched ${membersData.data?.length || 0} members and ${invitesData.data?.length || 0} invites');
     } catch (err: any) {
       console.error('Error fetching project data:', err.message);
       setError('Failed to load project members data');
@@ -227,7 +227,7 @@ const ProjectMembersSettings = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Sending invitation to ${email} with role ${role}`);
+      console.log('[' + traceId + '] Sending invitation to ${email} with role ${role}');
       
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -240,7 +240,7 @@ const ProjectMembersSettings = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******        },
+          'Authorization': `******` },
         body: JSON.stringify({ email, role })
       });
       
@@ -271,7 +271,7 @@ const ProjectMembersSettings = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Adding dummy user ${name} with role ${role}`);
+      console.log('[' + traceId + '] Adding dummy user ${name} with role ${role}');
       
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -284,7 +284,7 @@ const ProjectMembersSettings = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******        },
+          'Authorization': `******` },
         body: JSON.stringify({ name, role })
       });
       
@@ -315,7 +315,7 @@ const ProjectMembersSettings = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Updating role for user ${userId} to ${newRole}`);
+      console.log('[' + traceId + '] Updating role for user ${userId} to ${newRole}');
       
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -328,7 +328,7 @@ const ProjectMembersSettings = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******        },
+          'Authorization': `******` },
         body: JSON.stringify({ userId, role: newRole })
       });
       
@@ -366,7 +366,7 @@ const ProjectMembersSettings = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Removing member ${userId}`);
+      console.log('[' + traceId + '] Removing member ${userId}');
       
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -378,7 +378,7 @@ const ProjectMembersSettings = () => {
       const response = await fetch(`/api/projects/${projectId}/members?userId=${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `******        }
+          'Authorization': `******` }
       });
       
       if (!response.ok) {
@@ -412,7 +412,7 @@ const ProjectMembersSettings = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Canceling invitation ${inviteId}`);
+      console.log('[' + traceId + '] Canceling invitation ${inviteId}');
       
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -432,7 +432,7 @@ const ProjectMembersSettings = () => {
         throw new Error(error.message || 'Failed to cancel invitation');
       }
       
-      console.log(`[${traceId}] Invitation canceled successfully`);
+      console.log('[' + traceId + '] Invitation canceled successfully');
       
       // The invite removal will be reflected via realtime subscription
     } catch (err: any) {
@@ -452,7 +452,7 @@ const ProjectMembersSettings = () => {
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Resending invitation ${inviteId}`);
+      console.log('[' + traceId + '] Resending invitation ${inviteId}');
       
       // Get the invite details
       const { data: invite, error: inviteError } = await supabase
@@ -477,7 +477,7 @@ const ProjectMembersSettings = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******        },
+          'Authorization': `******` },
         body: JSON.stringify({ 
           email: invite.email, 
           role: invite.role,
@@ -490,7 +490,7 @@ const ProjectMembersSettings = () => {
         throw new Error(errorData.error || 'Failed to resend invitation');
       }
       
-      console.log(`[${traceId}] Invitation resent successfully`);
+      console.log('[' + traceId + '] Invitation resent successfully');
     } catch (err: any) {
       console.error('Error resending invitation:', err.message);
       setError(err.message);
