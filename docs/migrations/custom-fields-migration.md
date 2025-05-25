@@ -12,6 +12,16 @@ The migration performs the following steps:
 4. Verifies that all data has been migrated correctly
 5. Removes the deprecated columns
 
+## Compatibility Layer
+
+To ensure backward compatibility with existing code that might still reference the original columns, the migration includes a compatibility layer:
+
+1. A view called `tasks_with_fields` that adds virtual columns for the migrated fields
+2. A function `get_task_field_value` to fetch field values by name
+3. A trigger that automatically copies values from the virtual columns to custom fields
+
+This allows existing API endpoints to continue working without immediate changes, providing a smooth transition period.
+
 ## Migration Script
 
 The migration is handled by the Supabase migration file: `20250525000000_migrate_task_columns_to_custom_fields.sql`
@@ -40,6 +50,26 @@ The dry run will:
 - Show how many fields would be created
 - Count how many values would be migrated
 - Simulate the entire migration process without committing any changes
+
+### Testing the Migration
+
+Before running on production, you can test the migration script on a local or staging environment:
+
+```bash
+# Run the test script (creates a test database)
+./scripts/test-migration.sh
+
+# With custom connection parameters
+./scripts/test-migration.sh host port username password
+```
+
+The test script:
+1. Creates a temporary test database
+2. Applies all migrations up to the custom fields migration
+3. Inserts test data
+4. Runs the migration
+5. Verifies the results
+6. Cleans up the test database
 
 ### Production Migration
 
