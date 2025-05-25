@@ -5,9 +5,10 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Page from '@/components/page';
 import Section from '@/components/section';
+import TaskForm from '@/components/TaskForm';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import { Project, Task, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition } from '@/types/database';
+import { Project, Task, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 
 // Task statuses for organization (legacy, kept for fallback)
@@ -358,25 +359,15 @@ const ProjectDetail = () => {
   const handleAddTask = () => {
     setTaskFormMode('create');
     setCurrentTask(null);
-    setTaskName('');
-    setTaskDescription('');
-    setTaskStatus(TASK_STATUSES.TODO);
-    setTaskPriority('medium');
-    setTaskDueDate('');
     setTaskTypeId(null);
     setTaskStateId(null);
     setIsTaskModalOpen(true);
   };
 
   // Handle opening the task modal for editing a task
-  const handleEditTask = (task: Task) => {
+  const handleEditTask = async (task: Task) => {
     setTaskFormMode('edit');
     setCurrentTask(task);
-    setTaskName(task.name);
-    setTaskDescription(task.description || '');
-    setTaskStatus(task.status);
-    setTaskPriority(task.priority);
-    setTaskDueDate(task.due_date || '');
     setTaskTypeId(task.task_type_id);
     setTaskStateId(task.state_id);
     setIsTaskModalOpen(true);
@@ -1232,156 +1223,118 @@ const ProjectDetail = () => {
                 {taskFormMode === 'create' ? 'Add New Task' : 'Edit Task'}
               </h3>
               
-              <form onSubmit={handleTaskSubmit}>
-                <div className="mb-4">
-                  <label htmlFor="taskName" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Task Name*
-                  </label>
-                  <input
-                    type="text"
-                    id="taskName"
-                    value={taskName}
-                    onChange={(e) => setTaskName(e.target.value)}
-                    className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
-                    placeholder="Enter task name"
-                    required
-                  />
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="taskDescription" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    id="taskDescription"
-                    value={taskDescription}
-                    onChange={(e) => setTaskDescription(e.target.value)}
-                    className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
-                    placeholder="Enter task description"
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="taskStatus" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Status
-                  </label>
-                  <select
-                    id="taskStatus"
-                    value={taskStatus}
-                    onChange={(e) => setTaskStatus(e.target.value)}
-                    className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
-                  >
-                    <option value={TASK_STATUSES.TODO}>To Do</option>
-                    <option value={TASK_STATUSES.IN_PROGRESS}>In Progress</option>
-                    <option value={TASK_STATUSES.DONE}>Done</option>
-                  </select>
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="taskType" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Task Type
-                  </label>
-                  <select
-                    id="taskType"
-                    value={taskTypeId || ''}
-                    onChange={(e) => handleTaskTypeChange(e.target.value)}
-                    className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
-                  >
-                    <option value="">No Type</option>
-                    {taskTypes.map(type => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                {taskTypeId && (
-                  <div className="mb-4">
-                    <label htmlFor="taskState" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                      State
-                    </label>
-                    <select
-                      id="taskState"
-                      value={taskStateId || ''}
-                      onChange={(e) => setTaskStateId(e.target.value)}
-                      className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
-                    >
-                      <option value="">Select State</option>
-                      {(() => {
-                        // Determine valid states based on the workflow
-                        let validStates: ProjectState[] = [];
-                        
-                        if (taskTypeId) {
-                          const taskType = taskTypes.find(tt => tt.id === taskTypeId);
-                          if (taskType) {
-                            const workflowId = taskType.workflow_id;
-                            validStates = getWorkflowStates(workflowId);
-                            
-                            // For existing task, only allow valid transitions
-                            if (taskFormMode === 'edit' && currentTask) {
-                              validStates = getNextValidStates(currentTask);
-                            }
-                          }
-                        }
-                        
-                        return validStates.map(state => (
-                          <option key={state.id} value={state.id}>{state.name}</option>
-                        ));
-                      })()}
-                    </select>
-                  </div>
-                )}
-                
-                <div className="mb-4">
-                  <label htmlFor="taskPriority" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Priority
-                  </label>
-                  <select
-                    id="taskPriority"
-                    value={taskPriority}
-                    onChange={(e) => setTaskPriority(e.target.value)}
-                    className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                
-                <div className="mb-6">
-                  <label htmlFor="taskDueDate" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    id="taskDueDate"
-                    value={taskDueDate}
-                    onChange={(e) => setTaskDueDate(e.target.value)}
-                    className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
-                  />
-                </div>
-                
-                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-                
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsTaskModalOpen(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md dark:border-zinc-600 hover:bg-gray-100 dark:hover:bg-zinc-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !taskName.trim()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {isSubmitting ? 'Saving...' : 'Save Task'}
-                  </button>
-                </div>
-              </form>
+              <TaskForm
+                mode={taskFormMode}
+                projectId={projectId as string}
+                taskTypeId={taskTypeId}
+                initialValues={currentTask ? {
+                  ...currentTask,
+                  field_values: [] // This would be fetched from the API in a real implementation
+                } : undefined}
+                onSubmit={async (task, fieldValues) => {
+                  try {
+                    // Start submission
+                    setIsSubmitting(true);
+                    setError(null);
+                    
+                    const traceId = uuidv4();
+                    const isEditing = taskFormMode === 'edit' && currentTask;
+                    console.log(`[${traceId}] ${isEditing ? 'Updating' : 'Creating'} task: ${task.name}`);
+                    
+                    // Get the session token
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    const token = sessionData.session?.access_token;
+                    
+                    if (!token) {
+                      throw new Error('No authentication token available');
+                    }
+  
+                    // First add optimistically to the UI
+                    const tempId = `temp-${Date.now()}`;
+                    const optimisticTask: Task = {
+                      id: isEditing ? currentTask!.id : tempId,
+                      name: task.name,
+                      description: task.description || null,
+                      project_id: projectId as string,
+                      owner_id: user.id,
+                      status: task.status,
+                      priority: task.priority,
+                      due_date: task.due_date || null,
+                      created_at: isEditing ? currentTask!.created_at : new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                      task_type_id: taskTypeId,
+                      state_id: taskStateId
+                    };
+                    
+                    if (isEditing) {
+                      // Replace the existing task in the list
+                      setTasks(prev => prev.map(t => t.id === currentTask!.id ? optimisticTask : t));
+                    } else {
+                      // Add the new task to the list
+                      setTasks(prev => [optimisticTask, ...prev]);
+                    }
+                    
+                    // Then save to the database via API
+                    const endpoint = isEditing ? `/api/tasks/${currentTask!.id}` : '/api/tasks';
+                    const method = isEditing ? 'PUT' : 'POST';
+                    
+                    const response = await fetch(endpoint, {
+                      method,
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                      },
+                      body: JSON.stringify({
+                        name: task.name,
+                        description: task.description || null,
+                        project_id: projectId,
+                        status: task.status,
+                        priority: task.priority,
+                        due_date: task.due_date || null,
+                        task_type_id: taskTypeId,
+                        state_id: taskStateId,
+                        field_values: fieldValues
+                      })
+                    });
+                    
+                    if (!response.ok) {
+                      throw new Error(`Error: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    console.log(`[${traceId}] Task ${isEditing ? 'updated' : 'created'} successfully: ${result.data.id}`);
+                    
+                    if (!isEditing) {
+                      // Replace the temporary item with the real one
+                      setTasks(prev => prev.map(t => t.id === tempId ? result.data : t));
+                    }
+                    
+                    // Close the modal and reset form
+                    setIsTaskModalOpen(false);
+                    setTaskName('');
+                    setTaskDescription('');
+                    setTaskStatus(TASK_STATUSES.TODO);
+                    setTaskPriority('medium');
+                    setTaskDueDate('');
+                    setTaskTypeId(null);
+                    setTaskStateId(null);
+                    setCurrentTask(null);
+                  } catch (err: any) {
+                    // Revert the optimistic update
+                    if (taskFormMode === 'edit' && currentTask) {
+                      setTasks(prev => prev.map(t => t.id === currentTask.id ? currentTask : t));
+                    } else {
+                      setTasks(prev => prev.filter(t => !t.id.toString().startsWith('temp-')));
+                    }
+                    
+                    setError('Failed to save task. Please try again.');
+                    console.error('Error saving task:', err.message);
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                onCancel={() => setIsTaskModalOpen(false)}
+              />
             </div>
           </div>
         )}
