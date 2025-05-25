@@ -65,6 +65,115 @@ Project owners and administrators can access the Project Settings page to:
 
 Access to project settings is restricted to project owners and users with admin privileges.
 
+## Custom Fields
+
+Custom fields allow project administrators to extend the standard task structure with additional, project-specific properties that capture the unique requirements of different workflows and organizations.
+
+### Adding Custom Fields in the UI
+
+1. **Navigate to Project Settings**: Access the project settings page for the project where you want to add custom fields.
+2. **Select Fields Tab**: Choose the "Fields" tab in the project settings.
+3. **Create a New Field**:
+   - Enter a field label (name)
+   - Select the input type (text, textarea, number, date, select, checkbox, radio)
+   - Mark as required if necessary
+   - Assign to specific task types within the project
+4. **Save the Field**: Click "Add Field" to create the field
+5. **Manage Existing Fields**: Edit, delete, or reassign fields to different task types as needed
+
+All created fields will automatically appear in task forms when creating or editing tasks of the assigned task types.
+
+### How Field Values Are Stored
+
+Custom field values are stored in a structured, normalized database schema:
+
+1. **Field Definitions**: Stored in the `fields` table with properties:
+   - `id`: Unique identifier for the field
+   - `project_id`: The project the field belongs to
+   - `name`: Display name of the field
+   - `input_type`: Type of field (text, number, etc.)
+   - `is_required`: Whether the field is mandatory
+
+2. **Field Assignments**: Stored in the `task_type_fields` junction table:
+   - `task_type_id`: The task type the field is assigned to
+   - `field_id`: The field being assigned
+
+3. **Field Values**: Stored in the `task_field_values` table:
+   - `task_id`: The task the value belongs to
+   - `field_id`: The field this value is for
+   - `value`: The actual field value (stored as text)
+
+This structure ensures data integrity while keeping the schema flexible for adding new field types.
+
+### Querying Field Values in Supabase SQL
+
+#### Basic Field Value Query
+
+```sql
+-- Get all tasks with their field values
+SELECT 
+  t.id as task_id,
+  t.name as task_name,
+  f.name as field_name,
+  tfv.value as field_value
+FROM 
+  tasks t
+JOIN 
+  task_field_values tfv ON t.id = tfv.task_id
+JOIN 
+  fields f ON tfv.field_id = f.id
+WHERE 
+  t.project_id = 'your-project-id';
+```
+
+#### Filter Tasks by Field Value
+
+```sql
+-- Find tasks with a specific field value
+SELECT 
+  t.id, 
+  t.name
+FROM 
+  tasks t
+JOIN 
+  task_field_values tfv ON t.id = tfv.task_id
+JOIN 
+  fields f ON tfv.field_id = f.id
+WHERE 
+  f.name = 'Priority Level'
+  AND tfv.value = 'High'
+  AND t.project_id = 'your-project-id';
+```
+
+#### Pivot Field Values to Columns
+
+```sql
+-- Pivot fields into columns (using Postgres crosstab)
+SELECT *
+FROM crosstab(
+  'SELECT 
+     t.id, 
+     f.name, 
+     tfv.value
+   FROM 
+     tasks t
+   JOIN 
+     task_field_values tfv ON t.id = tfv.task_id
+   JOIN 
+     fields f ON tfv.field_id = f.id
+   WHERE 
+     t.project_id = ''your-project-id''
+   ORDER BY 1,2',
+  'SELECT name FROM fields WHERE project_id = ''your-project-id'' ORDER BY 1'
+) AS (
+  task_id UUID,
+  "Priority" TEXT,
+  "Story Points" TEXT,
+  "Department" TEXT
+  -- Add expected field names here
+);
+```
+
 ## Workflow System
 
 ### Key Features
