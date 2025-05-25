@@ -17,9 +17,6 @@ const TASK_STATUSES = {
   DONE: 'done'
 };
 
-// Placeholder UUID for "any state" transitions
-const ANY_STATE_UUID = '00000000-0000-0000-0000-000000000000';
-
 const ProjectDetail = () => {
   const router = useRouter();
   const { id: projectId } = router.query;
@@ -117,13 +114,13 @@ const ProjectDetail = () => {
         if (stepsError) throw stepsError;
         
         setWorkflowSteps(stepsData || []);
-        
+
         // Fetch workflow transitions
         const { data: transitionsData, error: transitionsError } = await supabase
           .from('workflow_transitions')
           .select('*')
           .in('workflow_id', workflowIds);
-          
+
         if (transitionsError) throw transitionsError;
         
         setWorkflowTransitions(transitionsData || []);
@@ -164,7 +161,7 @@ const ProjectDetail = () => {
   };
 
   // Get the next valid states for a task
-  const getNextValidStates = (task: Task): ProjectState[] => {
+  const getNextValidStates = (task: Task, forDragAndDrop: boolean = false): ProjectState[] => {
     if (!task.task_type_id) return states;
     
     const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
@@ -173,45 +170,41 @@ const ProjectDetail = () => {
     const workflow = workflows.find(w => w.id === taskType.workflow_id);
     if (!workflow) return states;
     
-    const workflowStates = getWorkflowStates(workflow.id);
+    const workflowStatesMap = getWorkflowStates(workflow.id)
+      .reduce((map, state) => {
+        map[state.id] = state;
+        return map;
+      }, {} as Record<string, ProjectState>);
     
     // If task doesn't have a state, first state is valid
     if (!task.state_id) {
-      const firstState = workflowStates.length > 0 ? [workflowStates[0]] : [];
+      const firstState = Object.values(workflowStatesMap).length > 0 
+        ? [Object.values(workflowStatesMap)[0]] 
+        : [];
       return firstState;
     }
     
-    // Get the transitions for this workflow
-    const transitions = workflowTransitions.filter(t => t.workflow_id === workflow.id);
+    // For drag and drop, use workflow transitions to determine valid target states
+    const validStates: ProjectState[] = [];
     
-    // Find valid transitions from current state
-    const validTransitions = transitions.filter(t => 
-      // From the current state
-      t.from_state === task.state_id || 
-      // Or from "any state" (using placeholder UUID or NULL)
-      t.from_state === ANY_STATE_UUID || t.from_state === null
+    // Always include the current state
+    if (workflowStatesMap[task.state_id]) {
+      validStates.push(workflowStatesMap[task.state_id]);
+    }
+    
+    // Get all valid transitions for this workflow
+    const relevantTransitions = workflowTransitions.filter(t => 
+      t.workflow_id === workflow.id && 
+      (t.from_state === task.state_id || t.from_state === null)
     );
     
-    // Always allow staying in the current state
-    const currentState = workflowStates.find(s => s.id === task.state_id);
-    const validStates = currentState ? [currentState] : [];
-    
-    // Add all allowed destination states
-    validTransitions.forEach(transition => {
-      const destinationState = workflowStates.find(s => s.id === transition.to_state);
-      if (destinationState && !validStates.some(s => s.id === destinationState.id)) {
-        validStates.push(destinationState);
+    // Add all valid transition target states
+    relevantTransitions.forEach(transition => {
+      if (workflowStatesMap[transition.to_state] && 
+          !validStates.some(s => s.id === transition.to_state)) {
+        validStates.push(workflowStatesMap[transition.to_state]);
       }
     });
-    
-    // If no transitions found (including ANY state transitions), 
-    // fallback to allowing the next sequential state
-    if (validStates.length === 1 && currentState) {
-      const currentStateIndex = workflowStates.findIndex(s => s.id === task.state_id);
-      if (currentStateIndex !== -1 && currentStateIndex < workflowStates.length - 1) {
-        validStates.push(workflowStates[currentStateIndex + 1]);
-      }
-    }
     
     return validStates;
   };
@@ -669,6 +662,117 @@ const ProjectDetail = () => {
     return grouped;
   };
 
+  // State for drag and drop
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [validDropStates, setValidDropStates] = useState<string[]>([]);
+  
+  // Handle drag start event
+  const handleDragStart = (e: React.DragEvent, taskId: string, stateId: string, taskTypeId: string | null) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      taskId,
+      sourceStateId: stateId,
+      taskTypeId
+    }));
+    setDraggedTaskId(taskId);
+    
+    // Find the task being dragged
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      // Get valid next states for this task using workflow transitions
+      const nextStates = getNextValidStates(task, true);
+      setValidDropStates(nextStates.map(s => s.id));
+    }
+    
+    e.currentTarget.classList.add('opacity-50');
+  };
+  
+  // Handle drag end event
+  const handleDragEnd = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove('opacity-50');
+    setDraggedTaskId(null);
+    setValidDropStates([]);
+  };
+  
+  // Handle drag over event
+  const handleDragOver = (e: React.DragEvent, stateId: string) => {
+    e.preventDefault();
+    if (validDropStates.includes(stateId)) {
+      e.dataTransfer.dropEffect = 'move';
+    } else {
+      e.dataTransfer.dropEffect = 'none';
+    }
+  };
+  
+  // Handle drop event
+  const handleDrop = async (e: React.DragEvent, targetStateId: string) => {
+    e.preventDefault();
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const { taskId, sourceStateId, taskTypeId } = data;
+      
+      if (sourceStateId === targetStateId) {
+        return; // No change needed
+      }
+      
+      // Find the task being moved
+      const taskToMove = tasks.find(t => t.id === taskId);
+      if (!taskToMove) return;
+      
+      // Verify this is a valid transition using workflow transitions
+      const validStates = getNextValidStates(taskToMove, true);
+      if (!validStates.some(s => s.id === targetStateId)) {
+        console.warn('Invalid state transition attempted');
+        return;
+      }
+      
+      // Update optimistically in the UI
+      const updatedTask = { 
+        ...taskToMove,
+        state_id: targetStateId,
+        updated_at: new Date().toISOString()
+      };
+      
+      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+      
+      // Then update in the database
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          name: taskToMove.name,
+          description: taskToMove.description,
+          status: taskToMove.status,
+          priority: taskToMove.priority,
+          due_date: taskToMove.due_date,
+          state_id: targetStateId
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      console.log(`Task ${taskId} moved from state ${sourceStateId} to ${targetStateId}`);
+      
+    } catch (err: any) {
+      console.error('Error moving task:', err.message);
+      setError('Failed to move task. Please try again.');
+      // Revert the optimistic update
+      fetchTasks();
+    }
+  };
+
   // Task groups by state
   const groupedTasks = groupTasksByState();
 
@@ -764,13 +868,30 @@ const ProjectDetail = () => {
                       {state.name} ({(groupedTasks[state.id] || []).length})
                     </h4>
                     {(groupedTasks[state.id] || []).length === 0 ? (
-                      <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in this state</p>
+                      <p 
+                        className={`text-zinc-500 dark:text-zinc-500 text-sm italic p-4 border-2 border-dashed rounded-md ${
+                          validDropStates.includes(state.id) ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20' : 'border-transparent'
+                        }`}
+                        onDragOver={(e) => handleDragOver(e, state.id)}
+                        onDrop={(e) => handleDrop(e, state.id)}
+                      >
+                        No tasks in this state
+                      </p>
                     ) : (
-                      <div className="space-y-2">
+                      <div 
+                        className={`space-y-2 p-2 rounded-md ${
+                          validDropStates.includes(state.id) ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-dashed border-indigo-300 dark:border-indigo-700' : ''
+                        }`}
+                        onDragOver={(e) => handleDragOver(e, state.id)}
+                        onDrop={(e) => handleDrop(e, state.id)}
+                      >
                         {(groupedTasks[state.id] || []).map(task => (
                           <div
                             key={task.id}
-                            className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                            className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, task.id, state.id, task.task_type_id)}
+                            onDragEnd={handleDragEnd}
                           >
                             <div className="flex-grow">
                               <h5 className="font-medium">
@@ -832,19 +953,40 @@ const ProjectDetail = () => {
                   {!groupedTasks[TASK_STATUSES.TODO] || groupedTasks[TASK_STATUSES.TODO].length === 0 ? (
                     <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks to do</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div 
+                      className="space-y-2 todo-drop-zone p-2 rounded-md"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        try {
+                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                          const { taskId } = data;
+                          const taskToMove = tasks.find(t => t.id === taskId);
+                          if (taskToMove && taskToMove.status !== TASK_STATUSES.TODO) {
+                            // Check if this transition is valid according to workflow rules
+                            const validStates = getNextValidStates(taskToMove, true);
+                            const todoState = states.find(s => s.name.toLowerCase().includes('todo') || s.name.toLowerCase().includes('backlog'));
+                            
+                            // Only allow transition if it's valid in the workflow or if no workflow states defined
+                            if (!todoState || validStates.some(s => s.id === todoState.id) || validStates.length === states.length) {
+                              handleToggleTaskStatus(taskId, taskToMove.status);
+                            } else {
+                              console.warn('Invalid workflow transition attempted');
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Error in drop handling:', err);
+                        }
+                      }}
+                    >
                       {groupedTasks[TASK_STATUSES.TODO].map(task => (
                         <div
                           key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
                         >
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                            className="mt-1 mr-3"
-                            aria-label={`Mark ${task.name} as done`}
-                          />
                           <div className="flex-grow">
                             <h5 className="font-medium">
                               <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
@@ -896,19 +1038,67 @@ const ProjectDetail = () => {
                   {!groupedTasks[TASK_STATUSES.IN_PROGRESS] || groupedTasks[TASK_STATUSES.IN_PROGRESS].length === 0 ? (
                     <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in progress</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div 
+                      className="space-y-2 inprogress-drop-zone p-2 rounded-md"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        try {
+                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                          const { taskId } = data;
+                          const taskToMove = tasks.find(t => t.id === taskId);
+                          if (taskToMove && taskToMove.status !== TASK_STATUSES.IN_PROGRESS) {
+                            // Check if this transition is valid according to workflow rules
+                            const validStates = getNextValidStates(taskToMove, true);
+                            const inProgressState = states.find(s => s.name.toLowerCase().includes('progress') || s.name.toLowerCase().includes('doing'));
+                            
+                            // Only allow transition if it's valid in the workflow or if no workflow states defined
+                            if (!inProgressState || validStates.some(s => s.id === inProgressState.id) || validStates.length === states.length) {
+                              // Update the task to "in progress"
+                              const newStatus = TASK_STATUSES.IN_PROGRESS;
+                              const updatedTask = { ...taskToMove, status: newStatus, updated_at: new Date().toISOString() };
+                              setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+                              
+                              // Call API to update
+                              // Get the current session token
+                              supabase.auth.getSession().then(({ data: sessionData }) => {
+                                fetch(`/api/tasks/${taskId}`, {
+                                  method: 'PUT',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer ' + sessionData.session?.access_token
+                                  },
+                                  body: JSON.stringify({
+                                  name: taskToMove.name,
+                                  description: taskToMove.description,
+                                  status: newStatus,
+                                  priority: taskToMove.priority,
+                                  due_date: taskToMove.due_date
+                                })
+                              }).catch(err => {
+                                console.error('Error updating task status:', err);
+                                fetchTasks(); // Revert on error
+                              });
+                            }).catch(err => {
+                              console.error('Error getting session:', err);
+                            });
+                            } else {
+                              console.warn('Invalid workflow transition attempted');
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Error in drop handling:', err);
+                        }
+                      }}
+                    >
                       {groupedTasks[TASK_STATUSES.IN_PROGRESS].map(task => (
                         <div
                           key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start"
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
                         >
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                            className="mt-1 mr-3"
-                            aria-label={`Mark ${task.name} as done`}
-                          />
                           <div className="flex-grow">
                             <h5 className="font-medium">
                               <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
@@ -960,19 +1150,40 @@ const ProjectDetail = () => {
                   {!groupedTasks[TASK_STATUSES.DONE] || groupedTasks[TASK_STATUSES.DONE].length === 0 ? (
                     <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No completed tasks</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div 
+                      className="space-y-2 done-drop-zone p-2 rounded-md"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        try {
+                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                          const { taskId } = data;
+                          const taskToMove = tasks.find(t => t.id === taskId);
+                          if (taskToMove && taskToMove.status !== TASK_STATUSES.DONE) {
+                            // Check if this transition is valid according to workflow rules
+                            const validStates = getNextValidStates(taskToMove, true);
+                            const doneState = states.find(s => s.name.toLowerCase().includes('done') || s.name.toLowerCase().includes('complete'));
+                            
+                            // Only allow transition if it's valid in the workflow or if no workflow states defined
+                            if (!doneState || validStates.some(s => s.id === doneState.id) || validStates.length === states.length) {
+                              handleToggleTaskStatus(taskId, taskToMove.status);
+                            } else {
+                              console.warn('Invalid workflow transition attempted');
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Error in drop handling:', err);
+                        }
+                      }}
+                    >
                       {groupedTasks[TASK_STATUSES.DONE].map(task => (
                         <div
                           key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start opacity-70"
+                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move opacity-70"
                         >
-                          <input
-                            type="checkbox"
-                            checked={true}
-                            onChange={() => handleToggleTaskStatus(task.id, task.status)}
-                            className="mt-1 mr-3"
-                            aria-label={`Mark ${task.name} as not done`}
-                          />
                           <div className="flex-grow">
                             <h5 className="font-medium line-through">
                               <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
