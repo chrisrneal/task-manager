@@ -10,7 +10,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Generate trace ID for request logging
   const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/fields - Request received`);
+  console.log(`[${traceId}] ${method} /api/tasks - Request received`);
 
   // Extract user token from request
   const authHeader = req.headers.authorization;
@@ -26,7 +26,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Create a Supabase client with the user's token for RLS
   const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `****** } }
+    global: { headers: { Authorization: `Bearer ${token}` } }
   });
 
   // Verify the user session

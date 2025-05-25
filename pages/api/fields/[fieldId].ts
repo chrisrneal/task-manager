@@ -7,11 +7,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
-  const { fieldId } = req.query;
-  
+
   // Generate trace ID for request logging
   const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/fields/${fieldId} - Request received`);
+  console.log(`[${traceId}] ${method} /api/tasks - Request received`);
 
   // Extract user token from request
   const authHeader = req.headers.authorization;
@@ -27,12 +26,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Create a Supabase client with the user's token for RLS
   const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `****** } }
+    global: { headers: { Authorization: `Bearer ${token}` } }
   });
 
   // Verify the user session
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
+    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
     console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
     return res.status(401).json({ 
       error: 'Invalid authentication',
