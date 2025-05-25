@@ -78,6 +78,42 @@ export interface Subtask {
   updated_at: string;
 }
 
+// Custom Field Types
+export type FieldInputType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'radio';
+
+export interface Field {
+  id: string;
+  project_id: string;
+  name: string;
+  input_type: FieldInputType;
+  is_required: boolean;
+  created_at: string;
+  updated_at: string;
+  // Optional configuration for select/radio fields
+  options?: string[];
+  default_value?: string;
+}
+
+export interface TaskTypeField {
+  task_type_id: string;
+  field_id: string;
+}
+
+export interface TaskFieldValue {
+  task_id: string;
+  field_id: string;
+  value: string | null;
+}
+
+// Extended interfaces with joined data
+export interface FieldWithAssignments extends Field {
+  task_type_ids: string[];
+}
+
+export interface TaskWithFieldValues extends Task {
+  field_values: TaskFieldValue[];
+}
+
 export interface Database {
   projects: Project[];
   project_states: ProjectState[];
@@ -88,4 +124,7 @@ export interface Database {
   tasks: Task[];
   subtasks: Subtask[];
   project_members: ProjectMember[];
+  fields: Field[];
+  task_type_fields: TaskTypeField[];
+  task_field_values: TaskFieldValue[];
 }
