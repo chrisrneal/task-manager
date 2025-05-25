@@ -301,25 +301,25 @@ const TaskForm: React.FC<TaskFormProps> = ({
         />
       </div>
       
-      {/* Status (unless view-only) */}
-      {!isViewOnly && (
-        <div>
-          <label htmlFor="taskStatus" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-            Status
-          </label>
-          <select
-            id="taskStatus"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
-            disabled={isViewOnly}
-          >
-            <option value="todo">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="done">Done</option>
-          </select>
-        </div>
-      )}
+      {/* Status - Show in all modes, but disable in view-only mode */}
+      <div>
+        <label htmlFor="taskStatus" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+          Status
+        </label>
+        <select
+          id="taskStatus"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className={`w-full p-2 border rounded-md ${
+            isViewOnly ? 'bg-gray-100 dark:bg-zinc-800 cursor-not-allowed' : 'dark:bg-zinc-700'
+          } dark:border-zinc-600`}
+          disabled={isViewOnly}
+        >
+          <option value="todo">To Do</option>
+          <option value="in_progress">In Progress</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
       
       {/* Priority */}
       <div>

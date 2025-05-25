@@ -1308,6 +1308,7 @@ const ProjectDetail = () => {
                 taskTypes={taskTypes}
                 workflowStates={workflowStates}
                 validNextStates={validNextStates}
+                allowEditing={true}
                 onSubmit={async (task) => {
                   try {
                     // Start submission

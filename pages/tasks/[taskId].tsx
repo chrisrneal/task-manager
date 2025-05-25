@@ -166,7 +166,7 @@ export default function TaskDetail() {
 	// Prepare task with field values for the form
 	const taskWithFieldValues = {
 		...task,
-		field_values: fieldValues
+		field_values: task?.field_values || []
 	}
 
 	return (
