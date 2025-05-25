@@ -1,7 +1,6 @@
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/utils/supabaseClient'
-import FileUpload from '@/components/FileUpload'
 import TaskForm from '@/components/TaskForm'
 import { Task, TaskFieldValue, TaskWithFieldValues, TaskType } from '@/types/database'
 
@@ -15,6 +14,7 @@ export default function TaskDetail() {
 	const [taskTypes, setTaskTypes] = useState<TaskType[]>([])
 	const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([])
 	const [validNextStates, setValidNextStates] = useState<string[]>([])
+	const [isEditing, setIsEditing] = useState(false)
 
 	useEffect(() => {
 		if (!taskId) return
@@ -83,14 +83,72 @@ export default function TaskDetail() {
 		fetchTask()
 	}, [taskId])
 
-	const handleTaskFormSubmit = (task: TaskWithFieldValues) => {
-		// This is view-only mode, so this won't be called
-		console.log('Task form submitted:', task)
+	const handleTaskFormSubmit = async (updatedTask: TaskWithFieldValues) => {
+		if (!task) return
+
+		setLoading(true)
+		setError(null)
+
+		try {
+			// Get the session token
+			const { data: sessionData } = await supabase.auth.getSession()
+			const token = sessionData.session?.access_token
+
+			if (!token) {
+				throw new Error('No authentication token available')
+			}
+
+			// Update task in database
+			const response = await fetch(`/api/tasks/${task.id}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer ' + token
+				},
+				body: JSON.stringify({
+					name: updatedTask.name,
+					description: updatedTask.description || null,
+					project_id: updatedTask.project_id,
+					status: updatedTask.status,
+					priority: updatedTask.priority,
+					due_date: updatedTask.due_date || null,
+					task_type_id: updatedTask.task_type_id,
+					state_id: updatedTask.state_id,
+					field_values: updatedTask.field_values
+				})
+			})
+
+			if (!response.ok) {
+				throw new Error(`Error: ${response.status}`)
+			}
+
+			const result = await response.json()
+			console.log('Task updated successfully:', result.data.id)
+
+			// Update local state
+			setTask(result.data)
+			setIsEditing(false)
+		} catch (err: any) {
+			console.error('Error updating task:', err)
+			setError(err.message || 'Failed to update task')
+		} finally {
+			setLoading(false)
+		}
 	}
 
 	const handleTaskFormCancel = () => {
-		// Navigate back to projects
+		// If in edit mode, just disable editing without navigating away
+		if (isEditing) {
+			setIsEditing(false)
+			return
+		}
+		
+		// Otherwise, navigate back
 		router.back()
+	}
+
+	const toggleEditMode = () => {
+		setIsEditing(!isEditing)
 	}
 
 	if (loading) {
@@ -113,32 +171,30 @@ export default function TaskDetail() {
 
 	return (
 		<div className='p-4'>
-			<h1 className='text-2xl font-bold mb-4'>{task.name}</h1>
-			
-			<div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6'>
-				<div className='mb-4'>
-					<h2 className='text-lg font-semibold mb-2'>Task Details</h2>
-					
-					<TaskForm
-						mode="view"
-						projectId={task.project_id}
-						taskTypeId={task.task_type_id}
-						stateId={task.state_id}
-						initialValues={taskWithFieldValues}
-						validNextStates={[task.state_id || '']}
-						taskTypes={taskTypes}
-						workflowStates={workflowStates}
-						onSubmit={handleTaskFormSubmit}
-						onCancel={handleTaskFormCancel}
-					/>
-				</div>
+			<div className="flex justify-between items-center mb-4">
+				<h1 className='text-2xl font-bold'>{task.name}</h1>
+				<button
+					onClick={toggleEditMode}
+					className="px-3 py-1 bg-gray-200 dark:bg-zinc-700 rounded-md hover:bg-gray-300 dark:hover:bg-zinc-600 text-sm"
+				>
+					{isEditing ? 'Cancel Editing' : 'Edit Task'}
+				</button>
 			</div>
 			
-			<div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4'>
-				<h2 className='text-lg font-semibold mb-4'>Attachments</h2>
-				<div data-testid="file-upload">
-					<FileUpload taskId={task.id} />
-				</div>
+			<div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6'>
+				<TaskForm
+					mode="view"
+					projectId={task.project_id}
+					taskTypeId={task.task_type_id}
+					stateId={task.state_id}
+					initialValues={taskWithFieldValues}
+					validNextStates={validNextStates}
+					taskTypes={taskTypes}
+					workflowStates={workflowStates}
+					onSubmit={handleTaskFormSubmit}
+					onCancel={handleTaskFormCancel}
+					allowEditing={isEditing}
+				/>
 			</div>
 		</div>
 	)

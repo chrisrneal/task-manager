@@ -3,6 +3,7 @@ import { useProjectFields } from '@/hooks/useProjectFields';
 import { supabase } from '@/utils/supabaseClient';
 import { Field, Task, TaskFieldValue, TaskWithFieldValues, TaskType } from '@/types/database';
 import { validateFieldValueType } from '@/utils/customFieldUtils';
+import FileUpload from '@/components/FileUpload';
 
 interface TaskFormProps {
   mode: 'create' | 'edit' | 'view';
@@ -15,6 +16,7 @@ interface TaskFormProps {
   taskTypes?: TaskType[];
   workflowStates?: { id: string, name: string }[];
   validNextStates?: string[]; // IDs of states that are valid transitions
+  allowEditing?: boolean; // Whether to allow editing in view mode
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
@@ -27,7 +29,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
   onCancel,
   taskTypes = [],
   workflowStates = [],
-  validNextStates = []
+  validNextStates = [],
+  allowEditing = false
 }) => {
   // State for standard task fields
   const [name, setName] = useState(initialValues?.name || '');
@@ -257,7 +260,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     }
   };
   
-  const isViewOnly = mode === 'view';
+  const isViewOnly = mode === 'view' && !allowEditing;
   
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -378,39 +381,55 @@ const TaskForm: React.FC<TaskFormProps> = ({
         </select>
       </div>
       
-      {/* State - Always visible */}
+      {/* State Selection - Improved UI when in edit/create mode */}
       <div className="mb-4">
         <label htmlFor="taskState" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
           State
         </label>
-        <select
-          id="taskState"
-          value={selectedStateId || ''}
-          onChange={(e) => setSelectedStateId(e.target.value || null)}
-          className={`w-full p-2 border rounded-md ${
-            isViewOnly ? 'bg-gray-100 dark:bg-zinc-800 cursor-not-allowed' : 'dark:bg-zinc-700'
-          } dark:border-zinc-600`}
-          disabled={isViewOnly}
-        >
-          <option value="">Select a state</option>
-          {workflowStates
-            .filter(state => 
-              // In view mode, only show the current state
-              isViewOnly 
-                ? state.id === selectedStateId 
-                // In create/edit mode:
-                // - If validNextStates is provided and not empty, filter by it
-                // - Otherwise show all states (backwards compatibility)
-                : validNextStates.length > 0
-                  ? validNextStates.includes(state.id)
-                  : true
-            )
-            .map(state => (
-              <option key={state.id} value={state.id}>
-                {state.name}
-              </option>
-            ))}
-        </select>
+        <div className={`${!isViewOnly ? "flex items-center space-x-2" : ""}`}>
+          <select
+            id="taskState"
+            value={selectedStateId || ''}
+            onChange={(e) => setSelectedStateId(e.target.value || null)}
+            className={`w-full p-2 border rounded-md ${
+              isViewOnly ? 'bg-gray-100 dark:bg-zinc-800 cursor-not-allowed' : 'dark:bg-zinc-700'
+            } dark:border-zinc-600`}
+            disabled={isViewOnly}
+          >
+            <option value="">Select a state</option>
+            {workflowStates
+              .filter(state => 
+                // In view mode, only show the current state
+                isViewOnly 
+                  ? state.id === selectedStateId 
+                  // In create/edit mode:
+                  // - If validNextStates is provided and not empty, filter by it
+                  // - Otherwise show all states (backwards compatibility)
+                  : validNextStates.length > 0
+                    ? validNextStates.includes(state.id)
+                    : true
+              )
+              .map(state => (
+                <option key={state.id} value={state.id}>
+                  {state.name}
+                </option>
+              ))}
+          </select>
+          
+          {mode === 'view' && allowEditing && selectedStateId && (
+            <button
+              type="submit"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 mt-2 md:mt-0"
+            >
+              Save State Change
+            </button>
+          )}
+        </div>
+        {!isViewOnly && validNextStates.length > 0 && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Only valid state transitions are shown based on workflow rules.
+          </p>
+        )}
       </div>
       
       {/* Custom Fields */}
@@ -446,8 +465,34 @@ const TaskForm: React.FC<TaskFormProps> = ({
         <div className="text-red-500 text-sm">{formError}</div>
       )}
       
+      {/* File Upload - Only for tasks that have been saved (have an ID) */}
+      {initialValues?.id && (
+        <div className="border-t pt-4 mt-4">
+          <h4 className="font-medium mb-2 text-zinc-800 dark:text-zinc-200">Attachments</h4>
+          <FileUpload taskId={initialValues.id} />
+        </div>
+      )}
+      
       {/* Form Actions */}
-      {!isViewOnly && (
+      {mode === 'view' ? (
+        <div className="flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 border border-gray-300 rounded-md dark:border-zinc-600 hover:bg-gray-100 dark:hover:bg-zinc-700"
+          >
+            Back
+          </button>
+          {allowEditing ? (
+            <button
+              type="submit"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Update Task
+            </button>
+          ) : null}
+        </div>
+      ) : !isViewOnly && (
         <div className="flex justify-end space-x-3">
           <button
             type="button"
