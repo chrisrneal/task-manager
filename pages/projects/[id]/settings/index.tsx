@@ -389,6 +389,22 @@ const ProjectSettings = () => {
               onTaskTypesChange={handleTaskTypesChange}
             />
           </div>
+
+          {/* Members Section Link */}
+          <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
+            <h3 className="font-medium mb-4">Project Members</h3>
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">
+              Invite collaborators and manage team members for this project.
+            </p>
+            <div>
+              <Link
+                href={`/projects/${projectId}/settings/members`}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 inline-block"
+              >
+                Manage Members
+              </Link>
+            </div>
+          </div>
         </div>
       </Section>
     </Page>

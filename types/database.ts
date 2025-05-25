@@ -20,6 +20,21 @@ export interface ProjectMember {
   updated_at: string;
 }
 
+export type ProjectInviteStatus = 'pending' | 'accepted' | 'declined';
+
+export interface ProjectInvite {
+  id: string;
+  project_id: string;
+  email: string;
+  token: string;
+  invited_by: string;
+  role: ProjectMemberRole;
+  status: ProjectInviteStatus;
+  created_at: string;
+  updated_at: string;
+  dummy_user: boolean;
+}
+
 export interface ProjectState {
   id: string;
   project_id: string;
@@ -88,4 +103,5 @@ export interface Database {
   tasks: Task[];
   subtasks: Subtask[];
   project_members: ProjectMember[];
+  project_invites: ProjectInvite[];
 }
