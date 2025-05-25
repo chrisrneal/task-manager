@@ -355,8 +355,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
         />
       </div>
       
-      {/* Task Type */}
-      <div>
+      {/* Task Type - Always visible */}
+      <div className="mb-4">
         <label htmlFor="taskType" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
           Task Type
         </label>
@@ -378,8 +378,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
         </select>
       </div>
       
-      {/* State */}
-      <div>
+      {/* State - Always visible */}
+      <div className="mb-4">
         <label htmlFor="taskState" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
           State
         </label>

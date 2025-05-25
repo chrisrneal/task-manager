@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/utils/supabaseClient'
 import FileUpload from '@/components/FileUpload'
 import TaskForm from '@/components/TaskForm'
-import { Task, TaskFieldValue, TaskWithFieldValues } from '@/types/database'
+import { Task, TaskFieldValue, TaskWithFieldValues, TaskType } from '@/types/database'
 
 export default function TaskDetail() {
 	const router = useRouter()
@@ -12,6 +12,9 @@ export default function TaskDetail() {
 	const [fieldValues, setFieldValues] = useState<TaskFieldValue[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
+	const [taskTypes, setTaskTypes] = useState<TaskType[]>([])
+	const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([])
+	const [validNextStates, setValidNextStates] = useState<string[]>([])
 
 	useEffect(() => {
 		if (!taskId) return
@@ -40,6 +43,34 @@ export default function TaskDetail() {
 
 					if (fieldValuesError) throw fieldValuesError
 					setTask(prev => prev ? {...prev, field_values: fieldValuesData || []} : null)
+				}
+
+				// Fetch task types for the project
+				if (data.project_id) {
+					const { data: typesData, error: typesError } = await supabase
+						.from('task_types')
+						.select('*')
+						.eq('project_id', data.project_id)
+
+					if (typesError) throw typesError
+					setTaskTypes(typesData || [])
+				}
+
+				// Fetch states for the project
+				if (data.project_id) {
+					const { data: statesData, error: statesError } = await supabase
+						.from('project_states')
+						.select('*')
+						.eq('project_id', data.project_id)
+
+					if (statesError) throw statesError
+					setWorkflowStates(statesData.map(state => ({
+						id: state.id,
+						name: state.name
+					})) || [])
+
+					// Set valid next states (for this view, all states are valid)
+					setValidNextStates(statesData.map(state => state.id))
 				}
 			} catch (err: any) {
 				console.error('Error fetching task:', err)
@@ -95,6 +126,8 @@ export default function TaskDetail() {
 						stateId={task.state_id}
 						initialValues={taskWithFieldValues}
 						validNextStates={[task.state_id || '']}
+						taskTypes={taskTypes}
+						workflowStates={workflowStates}
 						onSubmit={handleTaskFormSubmit}
 						onCancel={handleTaskFormCancel}
 					/>

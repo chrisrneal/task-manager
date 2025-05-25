@@ -437,6 +437,9 @@ const ProjectDetail = () => {
           ...task,
           field_values: result.data || []
         });
+
+        // Ensure task type and state are set correctly for the task form
+        console.log('Editing task with type:', task.task_type_id, 'and state:', task.state_id);
       } catch (err: any) {
         console.error('Error fetching task field values:', err.message);
         // Continue with the modal even if field values can't be fetched
@@ -1365,8 +1368,8 @@ const ProjectDetail = () => {
                         status: task.status,
                         priority: task.priority,
                         due_date: task.due_date || null,
-                        task_type_id: taskTypeId,
-                        state_id: taskStateId,
+                        task_type_id: task.task_type_id,
+                        state_id: task.state_id,
                         field_values: task.field_values
                       })
                     });
