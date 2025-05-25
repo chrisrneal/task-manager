@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectFields } from '@/hooks/useProjectFields';
 import { supabase } from '@/utils/supabaseClient';
-import { Field, Task, TaskFieldValue } from '@/types/database';
+import { Field, Task, TaskFieldValue, TaskWithFieldValues } from '@/types/database';
 import { validateFieldValueType } from '@/utils/customFieldUtils';
 
 interface TaskFormProps {
   mode: 'create' | 'edit' | 'view';
   projectId: string | undefined | null;
   taskTypeId: string | null;
-  initialValues?: Task & { field_values?: TaskFieldValue[] };
-  onSubmit: (task: Task, fieldValues: TaskFieldValue[]) => void;
+  initialValues?: TaskWithFieldValues;
+  onSubmit: (task: TaskWithFieldValues) => void;
   onCancel: () => void;
 }
 
@@ -94,8 +94,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
       value: fieldValues[field.id] || null
     }));
     
-    // Create task object
-    const task: Task = {
+    // Create task object with field values
+    const task: TaskWithFieldValues = {
       id: initialValues?.id || '',
       name,
       description,
@@ -107,11 +107,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
       project_id: projectId || '',
       owner_id: initialValues?.owner_id || '',
       created_at: initialValues?.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      field_values: fieldValuesArray
     };
     
     // Submit the form
-    onSubmit(task, fieldValuesArray);
+    onSubmit(task);
   };
   
   // Handle field value change

@@ -1,71 +1,74 @@
 import React from 'react';
 import { Meta, StoryObj } from '@storybook/react';
 import TaskForm from '@/components/TaskForm';
+import { TaskWithFieldValues } from '@/types/database';
 
 // Mock the useProjectFields hook
-jest.mock('@/hooks/useProjectFields', () => ({
-  useProjectFields: () => ({
-    fields: [
-      {
-        id: '1',
-        name: 'Text Field',
-        input_type: 'text',
-        is_required: true,
-        project_id: 'project-1',
-        created_at: '2023-01-01',
-        updated_at: '2023-01-01'
-      },
-      {
-        id: '2',
-        name: 'Text Area',
-        input_type: 'textarea',
-        is_required: false,
-        project_id: 'project-1',
-        created_at: '2023-01-01',
-        updated_at: '2023-01-01'
-      },
-      {
-        id: '3',
-        name: 'Number Field',
-        input_type: 'number',
-        is_required: false,
-        project_id: 'project-1',
-        created_at: '2023-01-01',
-        updated_at: '2023-01-01'
-      },
-      {
-        id: '4',
-        name: 'Date Field',
-        input_type: 'date',
-        is_required: false,
-        project_id: 'project-1',
-        created_at: '2023-01-01',
-        updated_at: '2023-01-01'
-      },
-      {
-        id: '5',
-        name: 'Select Field',
-        input_type: 'select',
-        is_required: false,
-        project_id: 'project-1',
-        created_at: '2023-01-01',
-        updated_at: '2023-01-01',
-        options: ['Option 1', 'Option 2', 'Option 3']
-      }
-    ],
-    loading: false,
-    error: null
-  })
-}));
+// Use module.exports instead of jest.mock for Storybook compatibility
+const mockUseProjectFields = () => ({
+  fields: [
+    {
+      id: '1',
+      name: 'Text Field',
+      input_type: 'text',
+      is_required: true,
+      project_id: 'project-1',
+      created_at: '2023-01-01',
+      updated_at: '2023-01-01'
+    },
+    {
+      id: '2',
+      name: 'Text Area',
+      input_type: 'textarea',
+      is_required: false,
+      project_id: 'project-1',
+      created_at: '2023-01-01',
+      updated_at: '2023-01-01'
+    },
+    {
+      id: '3',
+      name: 'Number Field',
+      input_type: 'number',
+      is_required: false,
+      project_id: 'project-1',
+      created_at: '2023-01-01',
+      updated_at: '2023-01-01'
+    },
+    {
+      id: '4',
+      name: 'Date Field',
+      input_type: 'date',
+      is_required: false,
+      project_id: 'project-1',
+      created_at: '2023-01-01',
+      updated_at: '2023-01-01'
+    },
+    {
+      id: '5',
+      name: 'Select Field',
+      input_type: 'select',
+      is_required: false,
+      project_id: 'project-1',
+      created_at: '2023-01-01',
+      updated_at: '2023-01-01',
+      options: ['Option 1', 'Option 2', 'Option 3']
+    }
+  ],
+  loading: false,
+  error: null
+});
+
+// Override the imported hook with our mock
+import * as useProjectFieldsModule from '@/hooks/useProjectFields';
+(useProjectFieldsModule as any).useProjectFields = mockUseProjectFields;
 
 // Mock the supabase client
-jest.mock('@/utils/supabaseClient', () => ({
-  supabase: {
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: { access_token: 'mock-token' } } })
-    }
+import * as supabaseModule from '@/utils/supabaseClient';
+(supabaseModule as any).supabase = {
+  auth: {
+    getSession: () => Promise.resolve({ data: { session: { access_token: 'mock-token' } } })
   }
-}));
+};
 
 const meta: Meta<typeof TaskForm> = {
   title: 'Components/TaskForm',
@@ -84,7 +87,7 @@ export const Create: Story = {
     mode: 'create',
     projectId: 'project-1',
     taskTypeId: 'task-type-1',
-    onSubmit: (task, fieldValues) => console.log('Submit:', { task, fieldValues }),
+    onSubmit: (task: TaskWithFieldValues) => console.log('Submit:', task),
     onCancel: () => console.log('Cancel clicked'),
   },
 };
@@ -115,7 +118,7 @@ export const Edit: Story = {
         { task_id: 'task-1', field_id: '5', value: 'Option 2' }
       ]
     },
-    onSubmit: (task, fieldValues) => console.log('Submit:', { task, fieldValues }),
+    onSubmit: (task: TaskWithFieldValues) => console.log('Submit:', task),
     onCancel: () => console.log('Cancel clicked'),
   },
 };
@@ -146,7 +149,7 @@ export const ViewOnly: Story = {
         { task_id: 'task-1', field_id: '5', value: 'Option 2' }
       ]
     },
-    onSubmit: (task, fieldValues) => console.log('Submit:', { task, fieldValues }),
+    onSubmit: (task: TaskWithFieldValues) => console.log('Submit:', task),
     onCancel: () => console.log('Cancel clicked'),
   },
 };

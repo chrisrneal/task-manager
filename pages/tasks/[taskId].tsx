@@ -3,12 +3,12 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/utils/supabaseClient'
 import FileUpload from '@/components/FileUpload'
 import TaskForm from '@/components/TaskForm'
-import { Task, TaskFieldValue } from '@/types/database'
+import { Task, TaskFieldValue, TaskWithFieldValues } from '@/types/database'
 
 export default function TaskDetail() {
 	const router = useRouter()
 	const { taskId } = router.query
-	const [task, setTask] = useState<Task | null>(null)
+	const [task, setTask] = useState<TaskWithFieldValues | null>(null)
 	const [fieldValues, setFieldValues] = useState<TaskFieldValue[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
@@ -29,7 +29,7 @@ export default function TaskDetail() {
 					.single()
 
 				if (error) throw error
-				setTask(data)
+				setTask({...data, field_values: []})
 
 				// Fetch task field values if task has a type
 				if (data.task_type_id) {
@@ -39,7 +39,7 @@ export default function TaskDetail() {
 						.eq('task_id', taskId)
 
 					if (fieldValuesError) throw fieldValuesError
-					setFieldValues(fieldValuesData || [])
+					setTask(prev => prev ? {...prev, field_values: fieldValuesData || []} : null)
 				}
 			} catch (err: any) {
 				console.error('Error fetching task:', err)
@@ -52,9 +52,9 @@ export default function TaskDetail() {
 		fetchTask()
 	}, [taskId])
 
-	const handleTaskFormSubmit = (task: Task, fieldValues: TaskFieldValue[]) => {
+	const handleTaskFormSubmit = (task: TaskWithFieldValues) => {
 		// This is view-only mode, so this won't be called
-		console.log('Task form submitted:', { task, fieldValues })
+		console.log('Task form submitted:', task)
 	}
 
 	const handleTaskFormCancel = () => {

@@ -8,7 +8,7 @@ import Section from '@/components/section';
 import TaskForm from '@/components/TaskForm';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import { Project, Task, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue } from '@/types/database';
+import { Project, Task, TaskWithFieldValues, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 
 // Task statuses for organization (legacy, kept for fallback)
@@ -38,7 +38,7 @@ const ProjectDetail = () => {
   // Task form state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskFormMode, setTaskFormMode] = useState<'create' | 'edit'>('create');
-  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [currentTask, setCurrentTask] = useState<TaskWithFieldValues | null>(null);
   const [taskName, setTaskName] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [taskStatus, setTaskStatus] = useState(TASK_STATUSES.TODO);
@@ -367,7 +367,7 @@ const ProjectDetail = () => {
   // Handle opening the task modal for editing a task
   const handleEditTask = async (task: Task) => {
     setTaskFormMode('edit');
-    setCurrentTask(task);
+    setCurrentTask({...task, field_values: []});
     setTaskTypeId(task.task_type_id);
     setTaskStateId(task.state_id);
     
@@ -1264,11 +1264,8 @@ const ProjectDetail = () => {
                 mode={taskFormMode}
                 projectId={projectId as string}
                 taskTypeId={taskTypeId}
-                initialValues={currentTask ? {
-                  ...currentTask,
-                  field_values: [] // This would be fetched from the API in a real implementation
-                } : undefined}
-                onSubmit={async (task, fieldValues) => {
+                initialValues={currentTask || undefined}
+                onSubmit={async (task) => {
                   try {
                     // Start submission
                     setIsSubmitting(true);
@@ -1330,7 +1327,7 @@ const ProjectDetail = () => {
                         due_date: task.due_date || null,
                         task_type_id: taskTypeId,
                         state_id: taskStateId,
-                        field_values: fieldValues
+                        field_values: task.field_values
                       })
                     });
                     
