@@ -91,6 +91,27 @@ erDiagram
         timestamp updated_at
     }
     
+    fields {
+        uuid id PK
+        uuid project_id FK
+        string name
+        string input_type
+        boolean is_required
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    task_type_fields {
+        uuid task_type_id PK,FK
+        uuid field_id PK,FK
+    }
+    
+    task_field_values {
+        uuid task_id PK,FK
+        uuid field_id PK,FK
+        string value
+    }
+    
     projects ||--o{ project_members : "has many"
     projects ||--o{ tasks : "has many"
     tasks ||--o{ subtasks : "has many"
@@ -98,6 +119,11 @@ erDiagram
     projects ||--o{ project_states : "has many"
     projects ||--o{ workflows : "has many"
     projects ||--o{ task_types : "has many"
+    projects ||--o{ fields : "has many"
+    task_types ||--o{ task_type_fields : "has many"
+    fields ||--o{ task_type_fields : "has many"
+    tasks ||--o{ task_field_values : "has many"
+    fields ||--o{ task_field_values : "has many"
     workflows ||--o{ workflow_steps : "has many"
     workflows ||--o{ workflow_transitions : "has many"
     project_states ||--o{ workflow_steps : "referenced in"
@@ -152,6 +178,18 @@ All tables implement Row-Level Security with the following policies:
 ### Project States, Workflows, Workflow Steps, Workflow Transitions, Task Types RLS
 
 - **SELECT/UPDATE/DELETE/INSERT**: Policies inherit from the Projects table, allowing access when the user is a member of the related project or is an admin.
+
+### Fields Table RLS
+
+- **SELECT/UPDATE/DELETE/INSERT**: Policies inherit from the Projects table, allowing access when the user is a member of the related project or is an admin.
+
+### Task Type Fields Table RLS
+
+- **SELECT/UPDATE/DELETE/INSERT**: Policies inherit from the Task Types table, allowing access when the user is a member of the related project or is an admin.
+
+### Task Field Values Table RLS
+
+- **SELECT/UPDATE/DELETE/INSERT**: Policies inherit from the Tasks table, allowing access when the user is the owner of the related task or is an admin.
 
 ### Task Files Table RLS
 
