@@ -41,9 +41,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   try {
-    // Handle GET request - Get a single task
+    // Handle GET request - Get a single task with field values
     if (method === 'GET') {
-      const { data, error } = await supabase
+      const { data: task, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('id', taskId)
@@ -60,14 +60,38 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
         throw error;
       }
+
+      // Fetch task field values
+      const { data: fieldValues, error: fieldValuesError } = await supabase
+        .from('task_field_values')
+        .select(`
+          *,
+          fields (
+            id,
+            name,
+            input_type,
+            is_required
+          )
+        `)
+        .eq('task_id', taskId);
+
+      if (fieldValuesError) {
+        console.error(`[${traceId}] Error fetching field values: ${fieldValuesError.message}`);
+        // Continue without field values rather than failing
+      }
+
+      const taskWithFieldValues = {
+        ...task,
+        field_values: fieldValues || []
+      };
       
       console.log(`[${traceId}] GET /api/tasks/${taskId} - Success`);
-      return res.status(200).json({ data, traceId });
+      return res.status(200).json({ data: taskWithFieldValues, traceId });
     }
     
     // Handle PUT request - Update a task
     if (method === 'PUT') {
-      const { name, description, status, priority, due_date, task_type_id, state_id } = req.body;
+      const { name, description, status, priority, due_date, task_type_id, state_id, field_values } = req.body;
       
       if (!name) {
         console.log(`[${traceId}] Error: Missing required field 'name'`);
@@ -96,6 +120,62 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         throw findError;
       }
 
+      // Validate custom fields if provided
+      const finalTaskTypeId = task_type_id !== undefined ? task_type_id : existingTask.task_type_id;
+      
+      if (finalTaskTypeId && field_values && Array.isArray(field_values)) {
+        // Get required fields for this task type
+        const { data: taskTypeFields, error: ttfError } = await supabase
+          .from('task_type_fields')
+          .select(`
+            field_id,
+            fields (
+              id,
+              name,
+              is_required,
+              project_id
+            )
+          `)
+          .eq('task_type_id', finalTaskTypeId);
+
+        if (ttfError) {
+          console.error(`[${traceId}] Error fetching task type fields: ${ttfError.message}`);
+          return res.status(500).json({ 
+            error: 'Failed to validate task type fields',
+            traceId
+          });
+        }
+
+        // Check required fields
+        const requiredFields = taskTypeFields
+          .map((ttf: any) => ttf.fields)
+          .filter((field: any) => field && field.is_required);
+
+        for (const requiredField of requiredFields) {
+          const fieldValue = field_values.find(fv => fv.field_id === requiredField.id);
+          if (!fieldValue || !fieldValue.value || fieldValue.value.trim() === '') {
+            console.log(`[${traceId}] Error: Required field missing value - ${requiredField.name}`);
+            return res.status(400).json({ 
+              error: `Required field '${requiredField.name}' must have a value`,
+              traceId
+            });
+          }
+        }
+
+        // Validate that all provided fields belong to the task type
+        const assignedFieldIds = taskTypeFields.map((ttf: any) => ttf.field_id);
+        const invalidFields = field_values.filter(fv => !assignedFieldIds.includes(fv.field_id));
+        
+        if (invalidFields.length > 0) {
+          console.log(`[${traceId}] Error: Fields not assigned to task type`);
+          return res.status(400).json({ 
+            error: 'All fields must be assigned to the task type',
+            traceId
+          });
+        }
+      }
+
+      // Update the task
       const { data, error } = await supabase
         .from('tasks')
         .update({ 
@@ -104,7 +184,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           status: status || existingTask.status,
           priority: priority || existingTask.priority,
           due_date: due_date || existingTask.due_date,
-          task_type_id: task_type_id !== undefined ? task_type_id : existingTask.task_type_id,
+          task_type_id: finalTaskTypeId,
           state_id: state_id !== undefined ? state_id : existingTask.state_id,
           updated_at: new Date().toISOString()
         })
@@ -113,6 +193,26 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .select();
 
       if (error) throw error;
+
+      // Update field values if provided
+      if (field_values && Array.isArray(field_values) && field_values.length > 0) {
+        const fieldValuesToUpsert = field_values.map(fv => ({
+          task_id: taskId,
+          field_id: fv.field_id,
+          value: fv.value || null
+        }));
+
+        const { error: fieldValuesError } = await supabase
+          .from('task_field_values')
+          .upsert(fieldValuesToUpsert, {
+            onConflict: 'task_id,field_id'
+          });
+
+        if (fieldValuesError) {
+          console.error(`[${traceId}] Error updating field values: ${fieldValuesError.message}`);
+          // Continue despite field values error for now
+        }
+      }
       
       console.log(`[${traceId}] PUT /api/tasks/${taskId} - Success, updated task`);
       return res.status(200).json({ data: data[0], traceId });

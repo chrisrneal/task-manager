@@ -89,7 +89,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle POST request - Create a new task
     if (method === 'POST') {
-      const { name, description, project_id, status, priority, due_date } = req.body;
+      const { name, description, project_id, status, priority, due_date, task_type_id, state_id, field_values } = req.body;
 
       console.log(`[${traceId}] POST body:`, req.body);
       
@@ -120,7 +120,71 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         throw projectError;
       }
 
-      const { task_type_id, state_id } = req.body;
+      // Validate custom fields if task type is provided and field values are included
+      if (task_type_id && field_values && Array.isArray(field_values)) {
+        // Get required fields for this task type
+        const { data: taskTypeFields, error: ttfError } = await supabase
+          .from('task_type_fields')
+          .select(`
+            field_id,
+            fields (
+              id,
+              name,
+              is_required,
+              project_id
+            )
+          `)
+          .eq('task_type_id', task_type_id);
+
+        if (ttfError) {
+          console.error(`[${traceId}] Error fetching task type fields: ${ttfError.message}`);
+          return res.status(500).json({ 
+            error: 'Failed to validate task type fields',
+            traceId
+          });
+        }
+
+        // Validate that fields belong to the same project
+        const invalidProjectFields = taskTypeFields
+          .map((ttf: any) => ttf.fields)
+          .filter((field: any) => field && field.project_id !== project_id);
+
+        if (invalidProjectFields.length > 0) {
+          console.log(`[${traceId}] Error: Task type fields don't belong to project`);
+          return res.status(400).json({ 
+            error: 'Task type fields must belong to the same project',
+            traceId
+          });
+        }
+
+        // Check required fields
+        const requiredFields = taskTypeFields
+          .map((ttf: any) => ttf.fields)
+          .filter((field: any) => field && field.is_required);
+
+        for (const requiredField of requiredFields) {
+          const fieldValue = field_values.find(fv => fv.field_id === requiredField.id);
+          if (!fieldValue || !fieldValue.value || fieldValue.value.trim() === '') {
+            console.log(`[${traceId}] Error: Required field missing value - ${requiredField.name}`);
+            return res.status(400).json({ 
+              error: `Required field '${requiredField.name}' must have a value`,
+              traceId
+            });
+          }
+        }
+
+        // Validate that all provided fields belong to the task type
+        const assignedFieldIds = taskTypeFields.map(ttf => ttf.field_id);
+        const invalidFields = field_values.filter(fv => !assignedFieldIds.includes(fv.field_id));
+        
+        if (invalidFields.length > 0) {
+          console.log(`[${traceId}] Error: Fields not assigned to task type`);
+          return res.status(400).json({ 
+            error: 'All fields must be assigned to the task type',
+            traceId
+          });
+        }
+      }
       
       const insertPayload = {
         name,
@@ -138,9 +202,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       const { data, error } = await supabase
         .from('tasks')
-        .insert([
-          insertPayload
-        ])
+        .insert([insertPayload])
         .select()
         .single();
 
@@ -150,6 +212,25 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           error: error.message,
           traceId
         });
+      }
+
+      // Insert field values if provided
+      if (field_values && Array.isArray(field_values) && field_values.length > 0) {
+        const fieldValuesToInsert = field_values.map(fv => ({
+          task_id: data.id,
+          field_id: fv.field_id,
+          value: fv.value || null
+        }));
+
+        const { error: fieldValuesError } = await supabase
+          .from('task_field_values')
+          .insert(fieldValuesToInsert);
+
+        if (fieldValuesError) {
+          console.error(`[${traceId}] Error inserting field values: ${fieldValuesError.message}`);
+          // Consider whether to rollback the task creation or continue
+          // For now, we'll continue but log the error
+        }
       }
 
       console.log(`[${traceId}] POST /api/tasks - Success, created task ${data.id}`);
