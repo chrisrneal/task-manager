@@ -181,7 +181,7 @@ export default function TaskDetail() {
 				</button>
 			</div>
 			
-			<div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6'>
+			<div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 overflow-auto max-h-[calc(100vh-8rem)]'>
 				<TaskForm
 					mode="view"
 					projectId={task.project_id}

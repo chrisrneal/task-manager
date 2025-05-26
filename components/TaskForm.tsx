@@ -386,7 +386,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         <label htmlFor="taskState" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
           State
         </label>
-        <div className={`${!isViewOnly ? "flex items-center space-x-2" : ""}`}>
+        <div className={`${!isViewOnly ? "flex flex-col sm:flex-row sm:items-center sm:space-x-2" : ""}`}>
           <select
             id="taskState"
             value={selectedStateId || ''}
@@ -419,7 +419,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           {mode === 'view' && allowEditing && selectedStateId && (
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 mt-2 md:mt-0"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 mt-2 sm:mt-0"
             >
               Save State Change
             </button>
@@ -475,7 +475,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
       
       {/* Form Actions */}
       {mode === 'view' ? (
-        <div className="flex justify-end space-x-3">
+        <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-4">
           <button
             type="button"
             onClick={onCancel}
@@ -493,7 +493,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           ) : null}
         </div>
       ) : !isViewOnly && (
-        <div className="flex justify-end space-x-3">
+        <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-4">
           <button
             type="button"
             onClick={onCancel}
