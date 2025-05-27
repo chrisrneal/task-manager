@@ -23,6 +23,7 @@
 - 🔄 Real-time updates with Supabase
 - 🔐 Secure authentication
 - 📊 Customizable project dashboards
+- 📋 Multiple project views (Kanban, List, Gantt)
 - 🚀 Dynamic task board with workflow states
 - 🔄 Workflow-driven task transitions
 - 📎 Secure file uploads for task attachments
@@ -33,6 +34,7 @@ The application allows users to:
 
 - Create and manage projects
 - Edit project names and descriptions from Project Settings (for project owners and admins)
+- View projects in different formats (Kanban board, List view, or Gantt chart)
 - Add tasks with details like name, description, priority, and due date
 - Organize tasks in customizable boards
 - Track task progress through workflows
@@ -53,6 +55,16 @@ The application allows users to:
 Files can be uploaded to tasks using a drag-and-drop interface. Each task can have multiple file attachments, with thumbnails for previewing images and icons for PDFs. File deletion is available with confirmation to prevent accidental removal.
 
 ## Project Management
+
+### Project Views
+
+Projects can be viewed in multiple formats using a tabbed interface:
+
+- **Kanban**: The default board-style view showing tasks organized by workflow states. Tasks can be dragged between states following the defined workflow rules.
+- **List**: A table-style view showing all tasks with sortable columns including name, status, priority, due date, and type. This view makes it easy to scan and sort all tasks in a project.
+- **Gantt**: (Coming Soon) A timeline view for visualizing task schedules and dependencies.
+
+Users can switch between these views using tabs at the top of the project page, with smooth transitions between each view.
 
 ### Project Settings
 

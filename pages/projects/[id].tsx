@@ -36,6 +36,21 @@ const ProjectDetail = () => {
   const [workflowTransitions, setWorkflowTransitions] = useState<WorkflowTransition[]>([]);
   const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([]);
   
+  // View state
+  const [activeView, setActiveView] = useState<'kanban' | 'list' | 'gantt'>('kanban');
+  const [isViewTransitioning, setIsViewTransitioning] = useState(false);
+  
+  // Handle view transition with animation
+  const handleViewChange = (view: 'kanban' | 'list' | 'gantt') => {
+    if (view === activeView) return;
+    
+    setIsViewTransitioning(true);
+    setTimeout(() => {
+      setActiveView(view);
+      setIsViewTransitioning(false);
+    }, 150); // Short timeout for the fade-out effect
+  };
+  
   // Task form state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskFormMode, setTaskFormMode] = useState<'create' | 'edit'>('create');
@@ -922,341 +937,508 @@ const ProjectDetail = () => {
             </button>
           </div>
 
+          {/* View Tabs */}
+          <div className="flex border-b border-gray-200 dark:border-zinc-700 mb-4 overflow-x-auto">
+            <button
+              onClick={() => handleViewChange('kanban')}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
+                activeView === 'kanban'
+                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              Kanban
+            </button>
+            <button
+              onClick={() => handleViewChange('list')}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
+                activeView === 'list'
+                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => handleViewChange('gantt')}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
+                activeView === 'gantt'
+                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              Gantt
+            </button>
+          </div>
+
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-          {/* Task List */}
-          <div className="space-y-6">
-            {states.length > 0 ? (
-              // Render columns based on workflow states
+          {/* Task List with Transition Effect */}
+          <div className={`space-y-6 transition-opacity duration-150 ${isViewTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+            {/* Kanban View */}
+            {activeView === 'kanban' && (
               <>
-                {states.map(state => (
-                  <div key={state.id}>
-                    <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                      {state.name} ({(groupedTasks[state.id] || []).length})
-                    </h4>
-                    {(groupedTasks[state.id] || []).length === 0 ? (
-                      <p 
-                        className={`text-zinc-500 dark:text-zinc-500 text-sm italic p-4 border-2 border-dashed rounded-md ${
-                          validDropStates.includes(state.id) ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20' : 'border-transparent'
-                        }`}
-                        onDragOver={(e) => handleDragOver(e, state.id)}
-                        onDrop={(e) => handleDrop(e, state.id)}
-                      >
-                        No tasks in this state
-                      </p>
-                    ) : (
-                      <div 
-                        className={`space-y-2 p-2 rounded-md ${
-                          validDropStates.includes(state.id) ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-dashed border-indigo-300 dark:border-indigo-700' : ''
-                        }`}
-                        onDragOver={(e) => handleDragOver(e, state.id)}
-                        onDrop={(e) => handleDrop(e, state.id)}
-                      >
-                        {(groupedTasks[state.id] || []).map(task => (
-                          <div
-                            key={task.id}
-                            className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
-                            draggable={true}
-                            onDragStart={(e) => handleDragStart(e, task.id, state.id, task.task_type_id)}
-                            onDragEnd={handleDragEnd}
+                {states.length > 0 ? (
+                  // Render columns based on workflow states
+                  <>
+                    {states.map(state => (
+                      <div key={state.id}>
+                        <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                          {state.name} ({(groupedTasks[state.id] || []).length})
+                        </h4>
+                        {(groupedTasks[state.id] || []).length === 0 ? (
+                          <p 
+                            className={`text-zinc-500 dark:text-zinc-500 text-sm italic p-4 border-2 border-dashed rounded-md ${
+                              validDropStates.includes(state.id) ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20' : 'border-transparent'
+                            }`}
+                            onDragOver={(e) => handleDragOver(e, state.id)}
+                            onDrop={(e) => handleDrop(e, state.id)}
                           >
-                            <div className="flex-grow">
-                              <h5 className="font-medium">
-                                <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                                  {task.name}
-                                </Link>
-                              </h5>
-                              {task.description && (
-                                <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
-                                  {task.description}
-                                </p>
-                              )}
-                              <div className="flex items-center mt-2 text-xs text-zinc-500">
-                                <span className="mr-3">Priority: {task.priority}</span>
-                                {task.due_date && (
-                                  <span className="mr-3">Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                            No tasks in this state
+                          </p>
+                        ) : (
+                          <div 
+                            className={`space-y-2 p-2 rounded-md ${
+                              validDropStates.includes(state.id) ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-dashed border-indigo-300 dark:border-indigo-700' : ''
+                            }`}
+                            onDragOver={(e) => handleDragOver(e, state.id)}
+                            onDrop={(e) => handleDrop(e, state.id)}
+                          >
+                            {(groupedTasks[state.id] || []).map(task => (
+                              <div
+                                key={task.id}
+                                className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
+                                draggable={true}
+                                onDragStart={(e) => handleDragStart(e, task.id, state.id, task.task_type_id)}
+                                onDragEnd={handleDragEnd}
+                              >
+                                <div className="flex-grow">
+                                  <h5 className="font-medium">
+                                    <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                      {task.name}
+                                    </Link>
+                                  </h5>
+                                  {task.description && (
+                                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
+                                      {task.description}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center mt-2 text-xs text-zinc-500">
+                                    <span className="mr-3">Priority: {task.priority}</span>
+                                    {task.due_date && (
+                                      <span className="mr-3">Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                                    )}
+                                    {task.task_type_id && (
+                                      <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 rounded-full text-xs">
+                                        {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center ml-2">
+                                  
+                                  <button
+                                    onClick={() => handleDeleteTask(task.id)}
+                                    className="text-zinc-500 hover:text-red-500"
+                                    aria-label={`Delete ${task.name}`}
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  // Fallback to legacy status columns if no workflow states are defined
+                  <>
+                    {/* To Do Tasks */}
+                    <div>
+                      <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        To Do ({groupedTasks[TASK_STATUSES.TODO]?.length || 0})
+                      </h4>
+                      {!groupedTasks[TASK_STATUSES.TODO] || groupedTasks[TASK_STATUSES.TODO].length === 0 ? (
+                        <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks to do</p>
+                      ) : (
+                        <div 
+                          className="space-y-2 todo-drop-zone p-2 rounded-md"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            try {
+                              const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                              const { taskId } = data;
+                              const taskToMove = tasks.find(t => t.id === taskId);
+                              if (taskToMove && taskToMove.status !== TASK_STATUSES.TODO) {
+                                // Check if this transition is valid according to workflow rules
+                                const validStates = getNextValidStates(taskToMove, true);
+                                const todoState = states.find(s => s.name.toLowerCase().includes('todo') || s.name.toLowerCase().includes('backlog'));
+                                
+                                // Only allow transition if it's valid in the workflow or if no workflow states defined
+                                if (!todoState || validStates.some(s => s.id === todoState.id) || validStates.length === states.length) {
+                                  handleToggleTaskStatus(taskId, taskToMove.status);
+                                } else {
+                                  console.warn('Invalid workflow transition attempted');
+                                }
+                              }
+                            } catch (err) {
+                              console.error('Error in drop handling:', err);
+                            }
+                          }}
+                        >
+                          {groupedTasks[TASK_STATUSES.TODO].map(task => (
+                            <div
+                              key={task.id}
+                              className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
+                            >
+                              <div className="flex-grow">
+                                <h5 className="font-medium">
+                                  <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                    {task.name}
+                                  </Link>
+                                </h5>
+                                {task.description && (
+                                  <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
+                                    {task.description}
+                                  </p>
                                 )}
-                                {task.task_type_id && (
-                                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 rounded-full text-xs">
-                                    {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
-                                  </span>
-                                )}
+                                <div className="flex items-center mt-2 text-xs text-zinc-500">
+                                  <span className="mr-3">Priority: {task.priority}</span>
+                                  {task.due_date && (
+                                    <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center ml-2">
+                                
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="text-zinc-500 hover:text-red-500"
+                                  aria-label={`Delete ${task.name}`}
+                                >
+                                  🗑️
+                                </button>
                               </div>
                             </div>
-                            <div className="flex items-center ml-2">
-                              
-                              <button
-                                onClick={() => handleDeleteTask(task.id)}
-                                className="text-zinc-500 hover:text-red-500"
-                                aria-label={`Delete ${task.name}`}
-                              >
-                                🗑️
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </>
-            ) : (
-              // Fallback to legacy status columns if no workflow states are defined
-              <>
-                {/* To Do Tasks */}
-                <div>
-                  <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                    To Do ({groupedTasks[TASK_STATUSES.TODO]?.length || 0})
-                  </h4>
-                  {!groupedTasks[TASK_STATUSES.TODO] || groupedTasks[TASK_STATUSES.TODO].length === 0 ? (
-                    <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks to do</p>
-                  ) : (
-                    <div 
-                      className="space-y-2 todo-drop-zone p-2 rounded-md"
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        try {
-                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                          const { taskId } = data;
-                          const taskToMove = tasks.find(t => t.id === taskId);
-                          if (taskToMove && taskToMove.status !== TASK_STATUSES.TODO) {
-                            // Check if this transition is valid according to workflow rules
-                            const validStates = getNextValidStates(taskToMove, true);
-                            const todoState = states.find(s => s.name.toLowerCase().includes('todo') || s.name.toLowerCase().includes('backlog'));
-                            
-                            // Only allow transition if it's valid in the workflow or if no workflow states defined
-                            if (!todoState || validStates.some(s => s.id === todoState.id) || validStates.length === states.length) {
-                              handleToggleTaskStatus(taskId, taskToMove.status);
-                            } else {
-                              console.warn('Invalid workflow transition attempted');
-                            }
-                          }
-                        } catch (err) {
-                          console.error('Error in drop handling:', err);
-                        }
-                      }}
-                    >
-                      {groupedTasks[TASK_STATUSES.TODO].map(task => (
-                        <div
-                          key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
-                        >
-                          <div className="flex-grow">
-                            <h5 className="font-medium">
-                              <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                                {task.name}
-                              </Link>
-                            </h5>
-                            {task.description && (
-                              <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
-                                {task.description}
-                              </p>
-                            )}
-                            <div className="flex items-center mt-2 text-xs text-zinc-500">
-                              <span className="mr-3">Priority: {task.priority}</span>
-                              {task.due_date && (
-                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center ml-2">
-                            
-                            <button
-                              onClick={() => handleDeleteTask(task.id)}
-                              className="text-zinc-500 hover:text-red-500"
-                              aria-label={`Delete ${task.name}`}
-                            >
-                              🗑️
-                            </button>
-                          </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* In Progress Tasks */}
-                <div>
-                  <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                    In Progress ({groupedTasks[TASK_STATUSES.IN_PROGRESS]?.length || 0})
-                  </h4>
-                  {!groupedTasks[TASK_STATUSES.IN_PROGRESS] || groupedTasks[TASK_STATUSES.IN_PROGRESS].length === 0 ? (
-                    <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in progress</p>
-                  ) : (
-                    <div 
-                      className="space-y-2 inprogress-drop-zone p-2 rounded-md"
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        try {
-                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                          const { taskId } = data;
-                          const taskToMove = tasks.find(t => t.id === taskId);
-                          if (taskToMove && taskToMove.status !== TASK_STATUSES.IN_PROGRESS) {
-                            // Check if this transition is valid according to workflow rules
-                            const validStates = getNextValidStates(taskToMove, true);
-                            const inProgressState = states.find(s => s.name.toLowerCase().includes('progress') || s.name.toLowerCase().includes('doing'));
-                            
-                            // Only allow transition if it's valid in the workflow or if no workflow states defined
-                            if (!inProgressState || validStates.some(s => s.id === inProgressState.id) || validStates.length === states.length) {
-                              // Update the task to "in progress"
-                              const newStatus = TASK_STATUSES.IN_PROGRESS;
-                              const updatedTask = { ...taskToMove, status: newStatus, updated_at: new Date().toISOString() };
-                              setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
-                              
-                              // Call API to update
-                              // Get the current session token
-                              supabase.auth.getSession().then(({ data: sessionData }) => {
-                                fetch(`/api/tasks/${taskId}`, {
-                                  method: 'PUT',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': 'Bearer ' + sessionData.session?.access_token
-                                  },
-                                  body: JSON.stringify({
-                                  name: taskToMove.name,
-                                  description: taskToMove.description,
-                                  status: newStatus,
-                                  priority: taskToMove.priority,
-                                  due_date: taskToMove.due_date
-                                })
-                              }).catch(err => {
-                                console.error('Error updating task status:', err);
-                                fetchTasks(); // Revert on error
-                              });
-                            }).catch(err => {
-                              console.error('Error getting session:', err);
-                            });
-                            } else {
-                              console.warn('Invalid workflow transition attempted');
+                    {/* In Progress Tasks */}
+                    <div>
+                      <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        In Progress ({groupedTasks[TASK_STATUSES.IN_PROGRESS]?.length || 0})
+                      </h4>
+                      {!groupedTasks[TASK_STATUSES.IN_PROGRESS] || groupedTasks[TASK_STATUSES.IN_PROGRESS].length === 0 ? (
+                        <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No tasks in progress</p>
+                      ) : (
+                        <div 
+                          className="space-y-2 inprogress-drop-zone p-2 rounded-md"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            try {
+                              const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                              const { taskId } = data;
+                              const taskToMove = tasks.find(t => t.id === taskId);
+                              if (taskToMove && taskToMove.status !== TASK_STATUSES.IN_PROGRESS) {
+                                // Check if this transition is valid according to workflow rules
+                                const validStates = getNextValidStates(taskToMove, true);
+                                const inProgressState = states.find(s => s.name.toLowerCase().includes('progress') || s.name.toLowerCase().includes('doing'));
+                                
+                                // Only allow transition if it's valid in the workflow or if no workflow states defined
+                                if (!inProgressState || validStates.some(s => s.id === inProgressState.id) || validStates.length === states.length) {
+                                  // Update the task to "in progress"
+                                  const newStatus = TASK_STATUSES.IN_PROGRESS;
+                                  const updatedTask = { ...taskToMove, status: newStatus, updated_at: new Date().toISOString() };
+                                  setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+                                  
+                                  // Call API to update
+                                  // Get the current session token
+                                  supabase.auth.getSession().then(({ data: sessionData }) => {
+                                    fetch(`/api/tasks/${taskId}`, {
+                                      method: 'PUT',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': 'Bearer ' + sessionData.session?.access_token
+                                      },
+                                      body: JSON.stringify({
+                                      name: taskToMove.name,
+                                      description: taskToMove.description,
+                                      status: newStatus,
+                                      priority: taskToMove.priority,
+                                      due_date: taskToMove.due_date
+                                    })
+                                  }).catch(err => {
+                                    console.error('Error updating task status:', err);
+                                    fetchTasks(); // Revert on error
+                                  });
+                                }).catch(err => {
+                                  console.error('Error getting session:', err);
+                                });
+                                } else {
+                                  console.warn('Invalid workflow transition attempted');
+                                }
+                              }
+                            } catch (err) {
+                              console.error('Error in drop handling:', err);
                             }
-                          }
-                        } catch (err) {
-                          console.error('Error in drop handling:', err);
-                        }
-                      }}
-                    >
-                      {groupedTasks[TASK_STATUSES.IN_PROGRESS].map(task => (
-                        <div
-                          key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
+                          }}
                         >
-                          <div className="flex-grow">
-                            <h5 className="font-medium">
-                              <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                                {task.name}
-                              </Link>
-                            </h5>
-                            {task.description && (
-                              <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
-                                {task.description}
-                              </p>
-                            )}
-                            <div className="flex items-center mt-2 text-xs text-zinc-500">
-                              <span className="mr-3">Priority: {task.priority}</span>
-                              {task.due_date && (
-                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center ml-2">
-                            
-                            <button
-                              onClick={() => handleDeleteTask(task.id)}
-                              className="text-zinc-500 hover:text-red-500"
-                              aria-label={`Delete ${task.name}`}
+                          {groupedTasks[TASK_STATUSES.IN_PROGRESS].map(task => (
+                            <div
+                              key={task.id}
+                              className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move"
                             >
-                              🗑️
-                            </button>
-                          </div>
+                              <div className="flex-grow">
+                                <h5 className="font-medium">
+                                  <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                    {task.name}
+                                  </Link>
+                                </h5>
+                                {task.description && (
+                                  <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1">
+                                    {task.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center mt-2 text-xs text-zinc-500">
+                                  <span className="mr-3">Priority: {task.priority}</span>
+                                  {task.due_date && (
+                                    <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center ml-2">
+                                
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="text-zinc-500 hover:text-red-500"
+                                  aria-label={`Delete ${task.name}`}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Done Tasks */}
-                <div>
-                  <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                    Done ({groupedTasks[TASK_STATUSES.DONE]?.length || 0})
-                  </h4>
-                  {!groupedTasks[TASK_STATUSES.DONE] || groupedTasks[TASK_STATUSES.DONE].length === 0 ? (
-                    <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No completed tasks</p>
-                  ) : (
-                    <div 
-                      className="space-y-2 done-drop-zone p-2 rounded-md"
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        try {
-                          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                          const { taskId } = data;
-                          const taskToMove = tasks.find(t => t.id === taskId);
-                          if (taskToMove && taskToMove.status !== TASK_STATUSES.DONE) {
-                            // Check if this transition is valid according to workflow rules
-                            const validStates = getNextValidStates(taskToMove, true);
-                            const doneState = states.find(s => s.name.toLowerCase().includes('done') || s.name.toLowerCase().includes('complete'));
-                            
-                            // Only allow transition if it's valid in the workflow or if no workflow states defined
-                            if (!doneState || validStates.some(s => s.id === doneState.id) || validStates.length === states.length) {
-                              handleToggleTaskStatus(taskId, taskToMove.status);
-                            } else {
-                              console.warn('Invalid workflow transition attempted');
+                    {/* Done Tasks */}
+                    <div>
+                      <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        Done ({groupedTasks[TASK_STATUSES.DONE]?.length || 0})
+                      </h4>
+                      {!groupedTasks[TASK_STATUSES.DONE] || groupedTasks[TASK_STATUSES.DONE].length === 0 ? (
+                        <p className="text-zinc-500 dark:text-zinc-500 text-sm italic">No completed tasks</p>
+                      ) : (
+                        <div 
+                          className="space-y-2 done-drop-zone p-2 rounded-md"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            try {
+                              const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                              const { taskId } = data;
+                              const taskToMove = tasks.find(t => t.id === taskId);
+                              if (taskToMove && taskToMove.status !== TASK_STATUSES.DONE) {
+                                // Check if this transition is valid according to workflow rules
+                                const validStates = getNextValidStates(taskToMove, true);
+                                const doneState = states.find(s => s.name.toLowerCase().includes('done') || s.name.toLowerCase().includes('complete'));
+                                
+                                // Only allow transition if it's valid in the workflow or if no workflow states defined
+                                if (!doneState || validStates.some(s => s.id === doneState.id) || validStates.length === states.length) {
+                                  handleToggleTaskStatus(taskId, taskToMove.status);
+                                } else {
+                                  console.warn('Invalid workflow transition attempted');
+                                }
+                              }
+                            } catch (err) {
+                              console.error('Error in drop handling:', err);
+                            }
+                          }}
+                        >
+                          {groupedTasks[TASK_STATUSES.DONE].map(task => (
+                            <div
+                              key={task.id}
+                              className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move opacity-70"
+                            >
+                              <div className="flex-grow">
+                                <h5 className="font-medium line-through">
+                                  <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                    {task.name}
+                                  </Link>
+                                </h5>
+                                {task.description && (
+                                  <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1 line-through">
+                                    {task.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center mt-2 text-xs text-zinc-500">
+                                  <span className="mr-3">Priority: {task.priority}</span>
+                                  {task.due_date && (
+                                    <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center ml-2">
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="text-zinc-500 hover:text-red-500"
+                                  aria-label={`Delete ${task.name}`}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* List View */}
+            {activeView === 'list' && (
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-700">
+                    <thead className="bg-gray-50 dark:bg-zinc-800">
+                      <tr>
+                        <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Task
+                        </th>
+                        <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th scope="col" className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Priority
+                        </th>
+                        <th scope="col" className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Due Date
+                        </th>
+                        <th scope="col" className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th scope="col" className="relative px-3 sm:px-6 py-3">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
+                      {tasks.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
+                            No tasks found
+                          </td>
+                        </tr>
+                      ) : (
+                        tasks.map(task => {
+                          // Get the state name for this task
+                          let statusName = task.status;
+                          if (task.state_id) {
+                            const state = states.find(s => s.id === task.state_id);
+                            if (state) {
+                              statusName = state.name;
                             }
                           }
-                        } catch (err) {
-                          console.error('Error in drop handling:', err);
-                        }
-                      }}
-                    >
-                      {groupedTasks[TASK_STATUSES.DONE].map(task => (
-                        <div
-                          key={task.id}
-                          className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 flex items-start cursor-move opacity-70"
-                        >
-                          <div className="flex-grow">
-                            <h5 className="font-medium line-through">
-                              <Link href={`/tasks/${task.id}`} className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                                {task.name}
-                              </Link>
-                            </h5>
-                            {task.description && (
-                              <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-1 line-through">
-                                {task.description}
-                              </p>
-                            )}
-                            <div className="flex items-center mt-2 text-xs text-zinc-500">
-                              <span className="mr-3">Priority: {task.priority}</span>
-                              {task.due_date && (
-                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center ml-2">
-                            <button
-                              onClick={() => handleDeleteTask(task.id)}
-                              className="text-zinc-500 hover:text-red-500"
-                              aria-label={`Delete ${task.name}`}
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          
+                          // Get the task type
+                          let typeName = '';
+                          if (task.task_type_id) {
+                            const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
+                            if (taskType) {
+                              typeName = taskType.name;
+                            }
+                          }
+                          
+                          return (
+                            <tr key={task.id}>
+                              <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                                  <Link href={`/tasks/${task.id}`}>
+                                    {task.name}
+                                  </Link>
+                                </div>
+                                {task.description && (
+                                  <div className="text-sm text-gray-500 dark:text-zinc-400 truncate max-w-xs">
+                                    {task.description}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                                <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-zinc-300">
+                                  {statusName}
+                                </span>
+                              </td>
+                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
+                                {task.priority}
+                              </td>
+                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
+                                {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
+                              </td>
+                              <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
+                                {typeName ? (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+                                    {typeName}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-gray-500 dark:text-zinc-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              </>
+              </div>
+            )}
+
+            {/* Gantt View (Placeholder) */}
+            {activeView === 'gantt' && (
+              <div className="bg-white dark:bg-zinc-800 rounded-md p-8 text-center">
+                <h3 className="text-lg font-medium text-zinc-700 dark:text-zinc-300 mb-2">Gantt View Coming Soon</h3>
+                <p className="text-zinc-500 dark:text-zinc-400">
+                  We&apos;re working on a timeline view to help you visualize task schedules and dependencies.
+                </p>
+                <div className="mt-6 p-4 border border-dashed border-indigo-300 dark:border-indigo-700 rounded-md">
+                  <p className="text-indigo-600 dark:text-indigo-400 font-medium">
+                    The Gantt view will include:
+                  </p>
+                  <ul className="mt-2 text-zinc-600 dark:text-zinc-400 text-sm text-left list-disc pl-5">
+                    <li>Timeline visualization of tasks</li>
+                    <li>Task dependencies and relationships</li>
+                    <li>Critical path identification</li>
+                    <li>Resource allocation overview</li>
+                    <li>Drag-and-drop scheduling</li>
+                  </ul>
+                </div>
+              </div>
             )}
           </div>
         </div>
