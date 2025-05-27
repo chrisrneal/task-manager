@@ -14,7 +14,8 @@ export default function TaskDetail() {
 	const [taskTypes, setTaskTypes] = useState<TaskType[]>([])
 	const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([])
 	const [validNextStates, setValidNextStates] = useState<string[]>([])
-	const [isEditing, setIsEditing] = useState(false)
+	// Editing is now disabled as per requirements
+	const isEditing = false
 
 	useEffect(() => {
 		if (!taskId) return
@@ -127,7 +128,6 @@ export default function TaskDetail() {
 
 			// Update local state
 			setTask(result.data)
-			setIsEditing(false)
 		} catch (err: any) {
 			console.error('Error updating task:', err)
 			setError(err.message || 'Failed to update task')
@@ -137,18 +137,8 @@ export default function TaskDetail() {
 	}
 
 	const handleTaskFormCancel = () => {
-		// If in edit mode, just disable editing without navigating away
-		if (isEditing) {
-			setIsEditing(false)
-			return
-		}
-		
-		// Otherwise, navigate back
+		// Navigate back
 		router.back()
-	}
-
-	const toggleEditMode = () => {
-		setIsEditing(!isEditing)
 	}
 
 	if (loading) {
@@ -173,12 +163,6 @@ export default function TaskDetail() {
 		<div className='p-4'>
 			<div className="flex justify-between items-center mb-4">
 				<h1 className='text-2xl font-bold'>{task.name}</h1>
-				<button
-					onClick={toggleEditMode}
-					className="px-3 py-1 bg-gray-200 dark:bg-zinc-700 rounded-md hover:bg-gray-300 dark:hover:bg-zinc-600 text-sm"
-				>
-					{isEditing ? 'Cancel Editing' : 'Edit Task'}
-				</button>
 			</div>
 			
 			<div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 overflow-auto max-h-[calc(100vh-8rem)]'>
