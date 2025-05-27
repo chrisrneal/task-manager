@@ -28,7 +28,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Create a Supabase client with the user's token for RLS
   const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `****** } }
+    global: { headers: { Authorization: `******` } }
   });
 
   // Verify the user session
