@@ -40,6 +40,13 @@ const ProjectDetail = () => {
   const [activeView, setActiveView] = useState<'kanban' | 'list' | 'gantt'>('kanban');
   const [isViewTransitioning, setIsViewTransitioning] = useState(false);
   
+  // List view state
+  const [sortField, setSortField] = useState<string>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [filterText, setFilterText] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>('');
+  
   // Handle view transition with animation
   const handleViewChange = (view: 'kanban' | 'list' | 'gantt') => {
     if (view === activeView) return;
@@ -49,6 +56,18 @@ const ProjectDetail = () => {
       setActiveView(view);
       setIsViewTransitioning(false);
     }, 150); // Short timeout for the fade-out effect
+  };
+  
+  // Handle sorting in list view
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle direction if the same field is clicked
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
   
   // Task form state
@@ -858,6 +877,93 @@ const ProjectDetail = () => {
   // Task groups by state
   const groupedTasks = groupTasksByState();
 
+  // Get sorted and filtered tasks for list view
+  const getSortedFilteredTasks = () => {
+    // Apply text filter
+    let filteredTasks = tasks;
+    
+    if (filterText.trim()) {
+      filteredTasks = filteredTasks.filter(task => 
+        task.name.toLowerCase().includes(filterText.toLowerCase()) || 
+        (task.description && task.description.toLowerCase().includes(filterText.toLowerCase()))
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter) {
+      filteredTasks = filteredTasks.filter(task => {
+        if (task.state_id) {
+          const state = states.find(s => s.id === task.state_id);
+          return state && state.id === statusFilter;
+        } else {
+          // For tasks without a state_id, match against legacy status
+          return task.status === statusFilter;
+        }
+      });
+    }
+    
+    // Apply type filter
+    if (typeFilter) {
+      filteredTasks = filteredTasks.filter(task => task.task_type_id === typeFilter);
+    }
+    
+    // Sort filtered tasks
+    return [...filteredTasks].sort((a, b) => {
+      let valueA, valueB;
+      
+      // Extract the values based on the sort field
+      switch (sortField) {
+        case 'name':
+          valueA = a.name.toLowerCase();
+          valueB = b.name.toLowerCase();
+          break;
+        case 'status':
+          // Use the state name if available, otherwise use the status
+          valueA = a.state_id 
+            ? (states.find(s => s.id === a.state_id)?.name || '').toLowerCase() 
+            : a.status.toLowerCase();
+          valueB = b.state_id 
+            ? (states.find(s => s.id === b.state_id)?.name || '').toLowerCase() 
+            : b.status.toLowerCase();
+          break;
+        case 'priority':
+          // Convert priority to numeric value for sorting
+          const priorityMap: { [key: string]: number } = {
+            'low': 1,
+            'medium': 2, 
+            'high': 3
+          };
+          valueA = priorityMap[a.priority] || 0;
+          valueB = priorityMap[b.priority] || 0;
+          break;
+        case 'due_date':
+          // Handle null dates
+          valueA = a.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+          valueB = b.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+          break;
+        case 'type':
+          // Get task type names
+          valueA = a.task_type_id 
+            ? (taskTypes.find(tt => tt.id === a.task_type_id)?.name || '').toLowerCase() 
+            : '';
+          valueB = b.task_type_id 
+            ? (taskTypes.find(tt => tt.id === b.task_type_id)?.name || '').toLowerCase() 
+            : '';
+          break;
+        default:
+          valueA = a.name.toLowerCase();
+          valueB = b.name.toLowerCase();
+      }
+      
+      // Sort based on direction
+      const result = sortField === 'priority' || sortField === 'due_date'
+        ? (valueA as number) - (valueB as number)  // Numeric comparison
+        : String(valueA).localeCompare(String(valueB)); // String comparison
+      
+      return sortDirection === 'asc' ? result : -result;
+    });
+  };
+
   // Loading and not found states
   if (loading || !user) return null;
   
@@ -1316,24 +1422,165 @@ const ProjectDetail = () => {
             {/* List View */}
             {activeView === 'list' && (
               <div className="overflow-x-auto -mx-4 sm:mx-0">
+                {/* Filter inputs */}
+                <div className="mb-4 px-4 sm:px-0">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    {/* Text filter */}
+                    <div className="relative sm:w-64">
+                      <input
+                        type="text"
+                        placeholder="Filter tasks..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-md dark:bg-zinc-800 dark:text-zinc-200"
+                        aria-label="Filter tasks by text"
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400 dark:text-zinc-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      {filterText && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                          <button 
+                            onClick={() => setFilterText('')}
+                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            aria-label="Clear filter"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status filter */}
+                    <div className="sm:w-48">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full py-2 px-3 border border-gray-300 dark:border-zinc-700 rounded-md dark:bg-zinc-800 dark:text-zinc-200"
+                        aria-label="Filter by status"
+                      >
+                        <option value="">All Statuses</option>
+                        {states.map(state => (
+                          <option key={state.id} value={state.id}>{state.name}</option>
+                        ))}
+                        <option value="todo">To Do</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="done">Done</option>
+                      </select>
+                    </div>
+
+                    {/* Type filter */}
+                    <div className="sm:w-48">
+                      <select
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                        className="w-full py-2 px-3 border border-gray-300 dark:border-zinc-700 rounded-md dark:bg-zinc-800 dark:text-zinc-200"
+                        aria-label="Filter by type"
+                      >
+                        <option value="">All Types</option>
+                        {taskTypes.map(type => (
+                          <option key={type.id} value={type.id}>{type.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Reset filters button */}
+                    {(filterText || statusFilter || typeFilter) && (
+                      <button
+                        onClick={() => {
+                          setFilterText('');
+                          setStatusFilter('');
+                          setTypeFilter('');
+                        }}
+                        className="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 rounded-md text-gray-700 dark:text-zinc-300"
+                        aria-label="Reset all filters"
+                      >
+                        Reset Filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="inline-block min-w-full align-middle">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-700">
                     <thead className="bg-gray-50 dark:bg-zinc-800">
                       <tr>
-                        <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                          Task
+                        <th 
+                          scope="col" 
+                          className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('name')}
+                          aria-sort={sortField === 'name' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Task</span>
+                            {sortField === 'name' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                          Status
+                        <th 
+                          scope="col" 
+                          className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('status')}
+                          aria-sort={sortField === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Status</span>
+                            {sortField === 'status' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th scope="col" className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                          Priority
+                        <th 
+                          scope="col" 
+                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('priority')}
+                          aria-sort={sortField === 'priority' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Priority</span>
+                            {sortField === 'priority' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th scope="col" className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                          Due Date
+                        <th 
+                          scope="col" 
+                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('due_date')}
+                          aria-sort={sortField === 'due_date' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Due Date</span>
+                            {sortField === 'due_date' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th scope="col" className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                          Type
+                        <th 
+                          scope="col" 
+                          className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('type')}
+                          aria-sort={sortField === 'type' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Type</span>
+                            {sortField === 'type' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
                         <th scope="col" className="relative px-3 sm:px-6 py-3">
                           <span className="sr-only">Actions</span>
@@ -1341,14 +1588,16 @@ const ProjectDetail = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
-                      {tasks.length === 0 ? (
+                      {getSortedFilteredTasks().length === 0 ? (
                         <tr>
                           <td colSpan={6} className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
-                            No tasks found
+                            {filterText || statusFilter || typeFilter ? 
+                              'No tasks match your filters' : 
+                              'No tasks found'}
                           </td>
                         </tr>
                       ) : (
-                        tasks.map(task => {
+                        getSortedFilteredTasks().map(task => {
                           // Get the state name for this task
                           let statusName = task.status;
                           if (task.state_id) {
@@ -1387,7 +1636,15 @@ const ProjectDetail = () => {
                                 </span>
                               </td>
                               <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
-                                {task.priority}
+                                <span className={`capitalize ${
+                                  task.priority === 'high' 
+                                    ? 'text-red-600 dark:text-red-400' 
+                                    : task.priority === 'medium'
+                                      ? 'text-yellow-600 dark:text-yellow-400'
+                                      : 'text-green-600 dark:text-green-400'
+                                }`}>
+                                  {task.priority}
+                                </span>
                               </td>
                               <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
                                 {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
@@ -1402,6 +1659,12 @@ const ProjectDetail = () => {
                                 )}
                               </td>
                               <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button
+                                  onClick={() => handleEditTask(task)}
+                                  className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-4"
+                                >
+                                  Edit
+                                </button>
                                 <button
                                   onClick={() => handleDeleteTask(task.id)}
                                   className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
