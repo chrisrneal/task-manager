@@ -568,45 +568,54 @@ const ProjectMembersSettings = () => {
 
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-        {/* Members list */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
-          <h3 className="font-medium mb-3">Project Members</h3>
+        {/* Settings sections */}
+        <div className="space-y-8">
+          {/* Members list */}
+          <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
+            <h3 className="font-medium mb-3">Project Members</h3>
+            
+            <MemberList
+              members={members}
+              currentUserId={user!.id}
+              isOwner={isOwner}
+              isAdmin={isAdmin}
+              onRoleChange={handleRoleChange}
+              onRemoveMember={handleRemoveMember}
+            />
+          </div>
           
-          <MemberList
-            members={members}
-            currentUserId={user!.id}
-            isOwner={isOwner}
-            isAdmin={isAdmin}
-            onRoleChange={handleRoleChange}
-            onRemoveMember={handleRemoveMember}
-          />
+          {/* Pending invitations */}
+          <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
+            <InviteList
+              invites={invites}
+              onCancelInvite={handleCancelInvite}
+              onResendInvite={handleResendInvite}
+              isLoading={isActionLoading}
+            />
+          </div>
+          
+          {/* Invite form */}
+          {isAdmin && (
+            <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
+              <InviteForm
+                projectId={projectId as string}
+                onInvite={handleInvite}
+                isLoading={isActionLoading}
+              />
+            </div>
+          )}
+          
+          {/* Dummy user form */}
+          {isAdmin && (
+            <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
+              <DummyUserForm
+                projectId={projectId as string}
+                onAddDummyUser={handleAddDummyUser}
+                isLoading={isActionLoading}
+              />
+            </div>
+          )}
         </div>
-        
-        {/* Pending invitations */}
-        <InviteList
-          invites={invites}
-          onCancelInvite={handleCancelInvite}
-          onResendInvite={handleResendInvite}
-          isLoading={isActionLoading}
-        />
-        
-        {/* Invite form */}
-        {isAdmin && (
-          <InviteForm
-            projectId={projectId as string}
-            onInvite={handleInvite}
-            isLoading={isActionLoading}
-          />
-        )}
-        
-        {/* Dummy user form */}
-        {isAdmin && (
-          <DummyUserForm
-            projectId={projectId as string}
-            onAddDummyUser={handleAddDummyUser}
-            isLoading={isActionLoading}
-          />
-        )}
       </Section>
     </Page>
   );
