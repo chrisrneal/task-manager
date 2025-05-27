@@ -53,7 +53,7 @@ const InviteAcceptPage = () => {
         
         const response = await fetch(`/api/invites/${token}/accept`, {
           headers: {
-            'Authorization': `******` }
+            'Authorization': 'Bearer ' + token }
         });
         
         if (!response.ok) {
@@ -106,7 +106,7 @@ const InviteAcceptPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******` }
+          'Authorization': 'Bearer ' + token }
       });
       
       if (!response.ok) {
@@ -153,7 +153,7 @@ const InviteAcceptPage = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******` },
+          'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ action: 'decline' })
       });
       

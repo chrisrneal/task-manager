@@ -110,7 +110,7 @@ const ProjectMembersSettings = () => {
       // Fetch members
       const membersResponse = await fetch(`/api/projects/${projectId}/members`, {
         headers: {
-          'Authorization': `******` }
+          'Authorization': 'Bearer ' + token }
       });
       
       if (!membersResponse.ok) {
@@ -123,7 +123,7 @@ const ProjectMembersSettings = () => {
       // Fetch invites
       const invitesResponse = await fetch(`/api/projects/${projectId}/invite`, {
         headers: {
-          'Authorization': `******` }
+          'Authorization': 'Bearer ' + token }
       });
       
       if (!invitesResponse.ok) {
@@ -240,7 +240,7 @@ const ProjectMembersSettings = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******` },
+          'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ email, role })
       });
       
@@ -284,7 +284,7 @@ const ProjectMembersSettings = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******` },
+          'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ name, role })
       });
       
@@ -328,7 +328,7 @@ const ProjectMembersSettings = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******` },
+          'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ userId, role: newRole })
       });
       
@@ -378,7 +378,7 @@ const ProjectMembersSettings = () => {
       const response = await fetch(`/api/projects/${projectId}/members?userId=${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `******` }
+          'Authorization': 'Bearer ' + token }
       });
       
       if (!response.ok) {
@@ -477,7 +477,7 @@ const ProjectMembersSettings = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `******` },
+          'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ 
           email: invite.email, 
           role: invite.role,
