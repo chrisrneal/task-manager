@@ -967,7 +967,7 @@ const ProjectDetail = () => {
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
               }`}
             >
-              Gantt
+              Gantt (upcoming)
             </button>
           </div>
 
