@@ -146,21 +146,52 @@ const FieldSettings = () => {
             </p>
           </div>
           <Link
-            href={`/projects/${projectId}/settings`}
+            href={`/projects/${projectId}`}
             className="px-3 py-1 bg-gray-200 text-gray-800 dark:bg-zinc-700 dark:text-zinc-300 rounded-md hover:bg-gray-300 dark:hover:bg-zinc-600 text-sm"
           >
-            Back to Settings
+            Back to Project
+          </Link>
+        </div>
+        
+        {/* Settings Navigation */}
+        <div className="flex space-x-4 mb-6">
+          <Link
+            href={`/projects/${projectId}/settings`}
+            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          >
+            General
+          </Link>
+          <Link
+            href={`/projects/${projectId}/settings/members`}
+            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          >
+            Members
+          </Link>
+          <Link
+            href={`/projects/${projectId}/settings/fields`}
+            className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            Fields
+          </Link>
+          <Link
+            href={`/projects/${projectId}/settings/workflows`}
+            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          >
+            Workflows
           </Link>
         </div>
 
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-        {/* Field Manager */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
-          <FieldManager 
-            projectId={projectId as string}
-            taskTypes={taskTypes}
-          />
+        {/* Settings sections */}
+        <div className="space-y-8">
+          {/* Field Manager */}
+          <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm">
+            <FieldManager 
+              projectId={projectId as string}
+              taskTypes={taskTypes}
+            />
+          </div>
         </div>
       </Section>
     </Page>

@@ -186,10 +186,10 @@ const WorkflowSettings = () => {
             </p>
           </div>
           <Link
-            href={`/projects/${projectId}/settings`}
+            href={`/projects/${projectId}`}
             className="px-3 py-1 bg-gray-200 text-gray-800 dark:bg-zinc-700 dark:text-zinc-300 rounded-md hover:bg-gray-300 dark:hover:bg-zinc-600 text-sm"
           >
-            Back to Settings
+            Back to Project
           </Link>
         </div>
 
@@ -200,6 +200,12 @@ const WorkflowSettings = () => {
             className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
           >
             General
+          </Link>
+          <Link
+            href={`/projects/${projectId}/settings/members`}
+            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          >
+            Members
           </Link>
           <Link
             href={`/projects/${projectId}/settings/fields`}
