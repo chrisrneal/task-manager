@@ -44,6 +44,8 @@ const ProjectDetail = () => {
   const [sortField, setSortField] = useState<string>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [filterText, setFilterText] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>('');
   
   // Handle view transition with animation
   const handleViewChange = (view: 'kanban' | 'list' | 'gantt') => {
@@ -877,12 +879,35 @@ const ProjectDetail = () => {
 
   // Get sorted and filtered tasks for list view
   const getSortedFilteredTasks = () => {
-    const filteredTasks = filterText.trim() 
-      ? tasks.filter(task => 
-          task.name.toLowerCase().includes(filterText.toLowerCase()) || 
-          (task.description && task.description.toLowerCase().includes(filterText.toLowerCase())))
-      : tasks;
+    // Apply text filter
+    let filteredTasks = tasks;
     
+    if (filterText.trim()) {
+      filteredTasks = filteredTasks.filter(task => 
+        task.name.toLowerCase().includes(filterText.toLowerCase()) || 
+        (task.description && task.description.toLowerCase().includes(filterText.toLowerCase()))
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter) {
+      filteredTasks = filteredTasks.filter(task => {
+        if (task.state_id) {
+          const state = states.find(s => s.id === task.state_id);
+          return state && state.id === statusFilter;
+        } else {
+          // For tasks without a state_id, match against legacy status
+          return task.status === statusFilter;
+        }
+      });
+    }
+    
+    // Apply type filter
+    if (typeFilter) {
+      filteredTasks = filteredTasks.filter(task => task.task_type_id === typeFilter);
+    }
+    
+    // Sort filtered tasks
     return [...filteredTasks].sort((a, b) => {
       let valueA, valueB;
       
@@ -1397,32 +1422,83 @@ const ProjectDetail = () => {
             {/* List View */}
             {activeView === 'list' && (
               <div className="overflow-x-auto -mx-4 sm:mx-0">
-                {/* Filter input */}
+                {/* Filter inputs */}
                 <div className="mb-4 px-4 sm:px-0">
-                  <div className="relative max-w-md">
-                    <input
-                      type="text"
-                      placeholder="Filter tasks..."
-                      value={filterText}
-                      onChange={(e) => setFilterText(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-md dark:bg-zinc-800 dark:text-zinc-200"
-                      aria-label="Filter tasks"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-gray-400 dark:text-zinc-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    {filterText && (
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                        <button 
-                          onClick={() => setFilterText('')}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          aria-label="Clear filter"
-                        >
-                          ✕
-                        </button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    {/* Text filter */}
+                    <div className="relative sm:w-64">
+                      <input
+                        type="text"
+                        placeholder="Filter tasks..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-md dark:bg-zinc-800 dark:text-zinc-200"
+                        aria-label="Filter tasks by text"
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400 dark:text-zinc-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                        </svg>
                       </div>
+                      {filterText && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                          <button 
+                            onClick={() => setFilterText('')}
+                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            aria-label="Clear filter"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status filter */}
+                    <div className="sm:w-48">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full py-2 px-3 border border-gray-300 dark:border-zinc-700 rounded-md dark:bg-zinc-800 dark:text-zinc-200"
+                        aria-label="Filter by status"
+                      >
+                        <option value="">All Statuses</option>
+                        {states.map(state => (
+                          <option key={state.id} value={state.id}>{state.name}</option>
+                        ))}
+                        <option value="todo">To Do</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="done">Done</option>
+                      </select>
+                    </div>
+
+                    {/* Type filter */}
+                    <div className="sm:w-48">
+                      <select
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                        className="w-full py-2 px-3 border border-gray-300 dark:border-zinc-700 rounded-md dark:bg-zinc-800 dark:text-zinc-200"
+                        aria-label="Filter by type"
+                      >
+                        <option value="">All Types</option>
+                        {taskTypes.map(type => (
+                          <option key={type.id} value={type.id}>{type.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Reset filters button */}
+                    {(filterText || statusFilter || typeFilter) && (
+                      <button
+                        onClick={() => {
+                          setFilterText('');
+                          setStatusFilter('');
+                          setTypeFilter('');
+                        }}
+                        className="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 rounded-md text-gray-700 dark:text-zinc-300"
+                        aria-label="Reset all filters"
+                      >
+                        Reset Filters
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1515,7 +1591,9 @@ const ProjectDetail = () => {
                       {getSortedFilteredTasks().length === 0 ? (
                         <tr>
                           <td colSpan={6} className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
-                            {filterText ? 'No tasks match your filter' : 'No tasks found'}
+                            {filterText || statusFilter || typeFilter ? 
+                              'No tasks match your filters' : 
+                              'No tasks found'}
                           </td>
                         </tr>
                       ) : (
