@@ -16,6 +16,18 @@ interface KanbanBoardProps {
   handleDeleteTask: (taskId: string) => void;
 }
 
+/**
+ * KanbanBoard Component
+ * 
+ * A modern, grid-based Kanban board for viewing tasks organized by workflow states.
+ * This component is used when a project has configured workflow states.
+ * 
+ * Features:
+ * - Responsive grid layout (1 column on mobile, 2 on medium screens, 3 on large screens)
+ * - Visual distinction of different task priorities with colored borders
+ * - Drag and drop support with visual feedback
+ * - Compact but informative task cards with tags for priority, due date, and task type
+ */
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
   states,
   tasks,
@@ -45,6 +57,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
             </h4>
           </div>
           
+          {/* Drop zone for tasks - shows visual feedback when a valid drop target */}
           <div 
             className={`min-h-[150px] transition-colors duration-150 rounded-md ${
               validDropStates.includes(state.id) 
@@ -91,12 +104,14 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         </button>
                       </div>
                       
+                      {/* Show description with 2-line limit */}
                       {task.description && (
                         <p className="text-zinc-600 dark:text-zinc-400 text-xs mt-1 line-clamp-2">
                           {task.description}
                         </p>
                       )}
                       
+                      {/* Task metadata as tags */}
                       <div className="flex items-center mt-2 text-xs text-zinc-500 flex-wrap gap-1">
                         <span className={`px-1.5 py-0.5 rounded-full text-xs
                           ${task.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
@@ -128,5 +143,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     </div>
   );
 };
+
+export default KanbanBoard;
 
 export default KanbanBoard;

@@ -24,6 +24,17 @@ interface KanbanViewProps {
   };
 }
 
+/**
+ * KanbanView Component
+ * 
+ * A container component that handles the rendering of the appropriate Kanban board view
+ * based on whether the project has workflow states configured.
+ * 
+ * Features:
+ * - Automatically selects between workflow-based or legacy Kanban views
+ * - Passes all necessary props to the selected component
+ * - Provides consistent Kanban experience regardless of project configuration
+ */
 const KanbanView: React.FC<KanbanViewProps> = ({
   states,
   tasks,
@@ -72,5 +83,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
     );
   }
 };
+
+export default KanbanView;
 
 export default KanbanView;

@@ -17,6 +17,19 @@ interface LegacyKanbanBoardProps {
   getNextValidStates: (task: Task, forDragAndDrop?: boolean) => ProjectState[];
 }
 
+/**
+ * LegacyKanbanBoard Component
+ * 
+ * A three-column Kanban board for viewing tasks organized by the legacy status system
+ * (To Do, In Progress, Done). This component is used when a project doesn't have 
+ * workflow states configured.
+ * 
+ * Features:
+ * - Fixed three-column layout with responsive design
+ * - Visual distinction of different task priorities with colored borders
+ * - Drag and drop support between status columns
+ * - Compact but informative task cards with tags for priority, due date, and task type
+ */
 const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
   tasks,
   taskTypes,
@@ -100,12 +113,14 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                     </button>
                   </div>
                   
+                  {/* Show description with 2-line limit */}
                   {task.description && (
                     <p className="text-zinc-600 dark:text-zinc-400 text-xs mt-1 line-clamp-2">
                       {task.description}
                     </p>
                   )}
                   
+                  {/* Task metadata as tags */}
                   <div className="flex items-center mt-2 text-xs text-zinc-500 flex-wrap gap-1">
                     <span className={`px-1.5 py-0.5 rounded-full text-xs
                       ${task.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
@@ -344,5 +359,7 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
     </div>
   );
 };
+
+export default LegacyKanbanBoard;
 
 export default LegacyKanbanBoard;
