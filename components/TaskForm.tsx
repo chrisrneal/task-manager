@@ -415,15 +415,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 </option>
               ))}
           </select>
-          
-          {mode === 'view' && allowEditing && selectedStateId && (
-            <button
-              type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 mt-2 sm:mt-0"
-            >
-              Save State Change
-            </button>
-          )}
         </div>
         {!isViewOnly && validNextStates.length > 0 && (
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

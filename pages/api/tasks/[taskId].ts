@@ -194,6 +194,52 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       if (error) throw error;
 
+      // Validate state transition if state has changed
+      if (state_id && state_id !== existingTask.state_id && finalTaskTypeId) {
+        // Get the task type to find its workflow
+        const { data: taskType, error: taskTypeError } = await supabase
+          .from('task_types')
+          .select('workflow_id')
+          .eq('id', finalTaskTypeId)
+          .single();
+
+        if (taskTypeError) throw taskTypeError;
+        
+        if (taskType?.workflow_id) {
+          // Get transitions for this workflow
+          const { data: transitions, error: transitionsError } = await supabase
+            .from('workflow_transitions')
+            .select('*')
+            .eq('workflow_id', taskType.workflow_id);
+            
+          if (transitionsError) throw transitionsError;
+          
+          // Check if the transition is valid
+          const isValidTransition = transitions.some(t => 
+            // Valid if it's a direct transition from current state to new state
+            (t.from_state === existingTask.state_id && t.to_state === state_id) ||
+            // Or if it's an "any state" transition to the new state
+            (t.from_state === '00000000-0000-0000-0000-000000000000' && t.to_state === state_id)
+          );
+          
+          if (!isValidTransition) {
+            console.log(`[${traceId}] Error: Invalid state transition from ${existingTask.state_id} to ${state_id}`);
+            
+            // Revert the task update
+            await supabase
+              .from('tasks')
+              .update({ state_id: existingTask.state_id })
+              .eq('id', taskId)
+              .eq('owner_id', user.id);
+              
+            return res.status(400).json({
+              error: 'Invalid state transition according to workflow rules',
+              traceId
+            });
+          }
+        }
+      }
+
       // Update field values if provided
       if (field_values && Array.isArray(field_values) && field_values.length > 0) {
         const fieldValuesToUpsert = field_values.map(fv => ({
