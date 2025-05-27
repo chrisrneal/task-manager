@@ -1424,7 +1424,7 @@ const ProjectDetail = () => {
               <div className="bg-white dark:bg-zinc-800 rounded-md p-8 text-center">
                 <h3 className="text-lg font-medium text-zinc-700 dark:text-zinc-300 mb-2">Gantt View Coming Soon</h3>
                 <p className="text-zinc-500 dark:text-zinc-400">
-                  We're working on a timeline view to help you visualize task schedules and dependencies.
+                  We&apos;re working on a timeline view to help you visualize task schedules and dependencies.
                 </p>
                 <div className="mt-6 p-4 border border-dashed border-indigo-300 dark:border-indigo-700 rounded-md">
                   <p className="text-indigo-600 dark:text-indigo-400 font-medium">
