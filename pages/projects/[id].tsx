@@ -38,6 +38,18 @@ const ProjectDetail = () => {
   
   // View state
   const [activeView, setActiveView] = useState<'kanban' | 'list' | 'gantt'>('kanban');
+  const [isViewTransitioning, setIsViewTransitioning] = useState(false);
+  
+  // Handle view transition with animation
+  const handleViewChange = (view: 'kanban' | 'list' | 'gantt') => {
+    if (view === activeView) return;
+    
+    setIsViewTransitioning(true);
+    setTimeout(() => {
+      setActiveView(view);
+      setIsViewTransitioning(false);
+    }, 150); // Short timeout for the fade-out effect
+  };
   
   // Task form state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -928,7 +940,7 @@ const ProjectDetail = () => {
           {/* View Tabs */}
           <div className="flex border-b border-gray-200 dark:border-zinc-700 mb-4 overflow-x-auto">
             <button
-              onClick={() => setActiveView('kanban')}
+              onClick={() => handleViewChange('kanban')}
               className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
                 activeView === 'kanban'
                   ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
@@ -938,7 +950,7 @@ const ProjectDetail = () => {
               Kanban
             </button>
             <button
-              onClick={() => setActiveView('list')}
+              onClick={() => handleViewChange('list')}
               className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
                 activeView === 'list'
                   ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
@@ -948,7 +960,7 @@ const ProjectDetail = () => {
               List
             </button>
             <button
-              onClick={() => setActiveView('gantt')}
+              onClick={() => handleViewChange('gantt')}
               className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
                 activeView === 'gantt'
                   ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
@@ -961,8 +973,8 @@ const ProjectDetail = () => {
 
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-          {/* Task List */}
-          <div className="space-y-6">
+          {/* Task List with Transition Effect */}
+          <div className={`space-y-6 transition-opacity duration-150 ${isViewTransitioning ? 'opacity-0' : 'opacity-100'}`}>
             {/* Kanban View */}
             {activeView === 'kanban' && (
               <>
