@@ -984,7 +984,16 @@ const ProjectDetail = () => {
                               </div>
                             </div>
                             <div className="flex items-center ml-2">
-                              
+                              <Link href={`/tasks/${task.id}`} className="text-zinc-500 hover:text-blue-500 mr-2" aria-label={`View details for ${task.name}`}>
+                                👁️
+                              </Link>
+                              <button
+                                onClick={() => handleEditTask(task)}
+                                className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
+                                aria-label={`Edit ${task.name}`}
+                              >
+                                ✎
+                              </button>
                               <button
                                 onClick={() => handleDeleteTask(task.id)}
                                 className="text-zinc-500 hover:text-red-500"
@@ -1064,7 +1073,16 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
-                            
+                            <Link href={`/tasks/${task.id}`} className="text-zinc-500 hover:text-blue-500 mr-2" aria-label={`View details for ${task.name}`}>
+                              👁️
+                            </Link>
+                            <button
+                              onClick={() => handleEditTask(task)}
+                              className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
+                              aria-label={`Edit ${task.name}`}
+                            >
+                              ✎
+                            </button>
                             <button
                               onClick={() => handleDeleteTask(task.id)}
                               className="text-zinc-500 hover:text-red-500"
@@ -1167,7 +1185,16 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
-                            
+                            <Link href={`/tasks/${task.id}`} className="text-zinc-500 hover:text-blue-500 mr-2" aria-label={`View details for ${task.name}`}>
+                              👁️
+                            </Link>
+                            <button
+                              onClick={() => handleEditTask(task)}
+                              className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mr-2"
+                              aria-label={`Edit ${task.name}`}
+                            >
+                              ✎
+                            </button>
                             <button
                               onClick={() => handleDeleteTask(task.id)}
                               className="text-zinc-500 hover:text-red-500"
@@ -1243,6 +1270,9 @@ const ProjectDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-2">
+                            <Link href={`/tasks/${task.id}`} className="text-zinc-500 hover:text-blue-500 mr-2" aria-label={`View details for ${task.name}`}>
+                              👁️
+                            </Link>
                             <button
                               onClick={() => handleDeleteTask(task.id)}
                               className="text-zinc-500 hover:text-red-500"
