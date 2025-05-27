@@ -926,10 +926,10 @@ const ProjectDetail = () => {
           </div>
 
           {/* View Tabs */}
-          <div className="flex border-b border-gray-200 dark:border-zinc-700 mb-4">
+          <div className="flex border-b border-gray-200 dark:border-zinc-700 mb-4 overflow-x-auto">
             <button
               onClick={() => setActiveView('kanban')}
-              className={`px-4 py-2 text-sm font-medium ${
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
                 activeView === 'kanban'
                   ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
@@ -939,7 +939,7 @@ const ProjectDetail = () => {
             </button>
             <button
               onClick={() => setActiveView('list')}
-              className={`px-4 py-2 text-sm font-medium ${
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
                 activeView === 'list'
                   ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
@@ -949,7 +949,7 @@ const ProjectDetail = () => {
             </button>
             <button
               onClick={() => setActiveView('gantt')}
-              className={`px-4 py-2 text-sm font-medium ${
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
                 activeView === 'gantt'
                   ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
@@ -1303,105 +1303,107 @@ const ProjectDetail = () => {
 
             {/* List View */}
             {activeView === 'list' && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-700">
-                  <thead className="bg-gray-50 dark:bg-zinc-800">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                        Task
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                        Priority
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                        Due Date
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th scope="col" className="relative px-6 py-3">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
-                    {tasks.length === 0 ? (
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-700">
+                    <thead className="bg-gray-50 dark:bg-zinc-800">
                       <tr>
-                        <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
-                          No tasks found
-                        </td>
+                        <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Task
+                        </th>
+                        <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th scope="col" className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Priority
+                        </th>
+                        <th scope="col" className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Due Date
+                        </th>
+                        <th scope="col" className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th scope="col" className="relative px-3 sm:px-6 py-3">
+                          <span className="sr-only">Actions</span>
+                        </th>
                       </tr>
-                    ) : (
-                      tasks.map(task => {
-                        // Get the state name for this task
-                        let statusName = task.status;
-                        if (task.state_id) {
-                          const state = states.find(s => s.id === task.state_id);
-                          if (state) {
-                            statusName = state.name;
+                    </thead>
+                    <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
+                      {tasks.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
+                            No tasks found
+                          </td>
+                        </tr>
+                      ) : (
+                        tasks.map(task => {
+                          // Get the state name for this task
+                          let statusName = task.status;
+                          if (task.state_id) {
+                            const state = states.find(s => s.id === task.state_id);
+                            if (state) {
+                              statusName = state.name;
+                            }
                           }
-                        }
-                        
-                        // Get the task type
-                        let typeName = '';
-                        if (task.task_type_id) {
-                          const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
-                          if (taskType) {
-                            typeName = taskType.name;
+                          
+                          // Get the task type
+                          let typeName = '';
+                          if (task.task_type_id) {
+                            const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
+                            if (taskType) {
+                              typeName = taskType.name;
+                            }
                           }
-                        }
-                        
-                        return (
-                          <tr key={task.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                                <Link href={`/tasks/${task.id}`}>
-                                  {task.name}
-                                </Link>
-                              </div>
-                              {task.description && (
-                                <div className="text-sm text-gray-500 dark:text-zinc-400 truncate max-w-xs">
-                                  {task.description}
+                          
+                          return (
+                            <tr key={task.id}>
+                              <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                                  <Link href={`/tasks/${task.id}`}>
+                                    {task.name}
+                                  </Link>
                                 </div>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-zinc-300">
-                                {statusName}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
-                              {task.priority}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
-                              {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {typeName ? (
-                                <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
-                                  {typeName}
+                                {task.description && (
+                                  <div className="text-sm text-gray-500 dark:text-zinc-400 truncate max-w-xs">
+                                    {task.description}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                                <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-zinc-300">
+                                  {statusName}
                                 </span>
-                              ) : (
-                                <span className="text-sm text-gray-500 dark:text-zinc-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <button
-                                onClick={() => handleDeleteTask(task.id)}
-                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                              </td>
+                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
+                                {task.priority}
+                              </td>
+                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
+                                {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
+                              </td>
+                              <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
+                                {typeName ? (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+                                    {typeName}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-gray-500 dark:text-zinc-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
