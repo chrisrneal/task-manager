@@ -145,5 +145,3 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 };
 
 export default KanbanBoard;
-
-export default KanbanBoard;

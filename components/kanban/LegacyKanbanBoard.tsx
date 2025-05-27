@@ -361,5 +361,3 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
 };
 
 export default LegacyKanbanBoard;
-
-export default LegacyKanbanBoard;

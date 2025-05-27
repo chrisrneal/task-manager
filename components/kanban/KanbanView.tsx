@@ -85,5 +85,3 @@ const KanbanView: React.FC<KanbanViewProps> = ({
 };
 
 export default KanbanView;
-
-export default KanbanView;
