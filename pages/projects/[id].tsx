@@ -814,17 +814,28 @@ const ProjectDetail = () => {
       const { taskId, sourceStateId, taskTypeId } = data;
       
       if (sourceStateId === targetStateId) {
+        // Clear drag state even when no change is needed
+        setDraggedTaskId(null);
+        setValidDropStates([]);
         return; // No change needed
       }
       
       // Find the task being moved
       const taskToMove = tasks.find(t => t.id === taskId);
-      if (!taskToMove) return;
+      if (!taskToMove) {
+        // Clear drag state if task not found
+        setDraggedTaskId(null);
+        setValidDropStates([]);
+        return;
+      }
       
       // Verify this is a valid transition using workflow transitions
       const validStates = getNextValidStates(taskToMove, true);
       if (!validStates.some(s => s.id === targetStateId)) {
         console.warn('Invalid state transition attempted');
+        // Clear drag state on invalid transition
+        setDraggedTaskId(null);
+        setValidDropStates([]);
         return;
       }
       
@@ -867,11 +878,18 @@ const ProjectDetail = () => {
       
       console.log(`Task ${taskId} moved from state ${sourceStateId} to ${targetStateId}`);
       
+      // Clear drag state after successful drop
+      setDraggedTaskId(null);
+      setValidDropStates([]);
+      
     } catch (err: any) {
       console.error('Error moving task:', err.message);
       setError('Failed to move task. Please try again.');
       // Revert the optimistic update
       fetchTasks();
+      // Clear drag state in case of error
+      setDraggedTaskId(null);
+      setValidDropStates([]);
     }
   };
 
