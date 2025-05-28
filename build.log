@@ -1,0 +1,70 @@
+
+> next-pwa-template@0.0.0 build
+> next build
+
+   ▲ Next.js 15.3.2
+
+   Linting and checking validity of types ...
+
+./pages/projects/[id]/settings/members.tsx
+150:6  Warning: React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+219:6  Warning: React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./pages/projects/[id].tsx
+421:6  Warning: React Hook useEffect has a missing dependency: 'getFirstWorkflowState'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Creating an optimized production build ...
+> [PWA] Compile server
+> [PWA] Compile server
+> [PWA] Compile client (static)
+> [PWA] Auto register service worker with: /home/runner/work/task-manager/task-manager/node_modules/next-pwa/register.js
+> [PWA] Service worker: /home/runner/work/task-manager/task-manager/public/sw.js
+> [PWA]   url: /sw.js
+> [PWA]   scope: /
+ ✓ Compiled successfully in 4.0s
+   Collecting page data ...
+   Generating static pages (0/12) ...
+   Generating static pages (3/12) 
+   Generating static pages (6/12) 
+   Generating static pages (9/12) 
+ ✓ Generating static pages (12/12)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (pages)                                 Size  First Load JS
+┌ ○ /                                      2.05 kB         137 kB
+├   /_app                                      0 B         132 kB
+├ ○ /404                                     190 B         132 kB
+├ ƒ /api/invites/[token]/accept                0 B         132 kB
+├ ƒ /api/projects                              0 B         132 kB
+├ ƒ /api/projects/[id]                         0 B         132 kB
+├ ƒ /api/projects/[id]/fields                  0 B         132 kB
+├ ƒ /api/projects/[id]/fields/[fieldId]        0 B         132 kB
+├ ƒ /api/projects/[id]/invite                  0 B         132 kB
+├ ƒ /api/projects/[id]/members                 0 B         132 kB
+├ ƒ /api/task-types/[id]/fields                0 B         132 kB
+├ ƒ /api/tasks                                 0 B         132 kB
+├ ƒ /api/tasks/[taskId]                        0 B         132 kB
+├ ƒ /api/tasks/[taskId]/field-values           0 B         132 kB
+├ ƒ /api/tasks/[taskId]/files                  0 B         132 kB
+├ ƒ /api/tasks/[taskId]/files/[fileId]         0 B         132 kB
+├ ƒ /api/tasks/[taskId]/upload                 0 B         132 kB
+├ ○ /invites/[token]/accept                3.64 kB         138 kB
+├ ○ /login                                   754 B         133 kB
+├ ○ /projects                              3.61 kB         138 kB
+├ ○ /projects/[id]                         9.41 kB         149 kB
+├ ○ /projects/[id]/settings                3.87 kB         138 kB
+├ ○ /projects/[id]/settings/fields         5.45 kB         140 kB
+├ ○ /projects/[id]/settings/members        10.3 kB         145 kB
+├ ○ /projects/[id]/settings/workflows      10.3 kB         145 kB
+└ ○ /tasks/[taskId]                        1.62 kB         139 kB
++ First Load JS shared by all               138 kB
+  ├ chunks/framework-dd223cbba7b123fc.js   57.7 kB
+  ├ chunks/main-18d9958a897a517c.js        35.9 kB
+  ├ chunks/pages/_app-2984fb5af73f6405.js  36.8 kB
+  └ other shared chunks (total)            7.48 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
