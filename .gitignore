@@ -8,5 +8,8 @@ node_modules
 **/public/workbox**
 **/public/sw**
 
+# Test results
+test-results/
+
 # Local env files
 .env.local
