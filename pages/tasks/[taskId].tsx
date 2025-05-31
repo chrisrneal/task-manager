@@ -48,6 +48,45 @@ export default function TaskDetail() {
 		}
 	}
 
+	// Calculate valid next states for a given task state and task type
+	const calculateValidNextStates = async (taskTypeId: string, currentStateId: string): Promise<string[]> => {
+		try {
+			// Get the task type to find its workflow
+			const { data: taskType, error: taskTypeError } = await supabase
+				.from('task_types')
+				.select('workflow_id')
+				.eq('id', taskTypeId)
+				.single()
+
+			if (taskTypeError) throw taskTypeError
+
+			if (taskType?.workflow_id) {
+				// Get the workflow transitions
+				const { data: transitions, error: transitionsError } = await supabase
+					.from('workflow_transitions')
+					.select('*')
+					.eq('workflow_id', taskType.workflow_id)
+
+				if (transitionsError) throw transitionsError
+
+				// Get the valid next states based on the current state
+				const validStates = transitions
+					.filter(t => 
+						// Include transitions from the current state
+						t.from_state === currentStateId || 
+						// Also include "any state" transitions (stored as NULL in DB)
+						t.from_state === null
+					)
+					.map(t => t.to_state)
+
+				return validStates
+			}
+		} catch (err: any) {
+			console.error('Error calculating valid next states:', err)
+		}
+		return []
+	}
+
 	useEffect(() => {
 		if (!taskId) return
 
@@ -104,39 +143,10 @@ export default function TaskDetail() {
 					// Fetch project members
 					await fetchProjectMembers(data.project_id)
 
-					// Get the workflow for the task's type to determine valid next states
-					if (data.task_type_id) {
-						// First get the task type to find its workflow
-						const { data: taskType, error: taskTypeError } = await supabase
-							.from('task_types')
-							.select('workflow_id')
-							.eq('id', data.task_type_id)
-							.single()
-
-						if (taskTypeError) throw taskTypeError
-
-						if (taskType?.workflow_id) {
-							// Get the workflow transitions
-							const { data: transitions, error: transitionsError } = await supabase
-								.from('workflow_transitions')
-								.select('*')
-								.eq('workflow_id', taskType.workflow_id)
-
-							if (transitionsError) throw transitionsError
-
-							// Get the valid next states based on the current state
-							const validStates = transitions
-								.filter(t => 
-									// Include transitions from the current state
-									t.from_state === data.state_id || 
-									// Also include "any state" transitions (using the special UUID)
-									t.from_state === '00000000-0000-0000-0000-000000000000'
-								)
-								.map(t => t.to_state)
-
-							// Set the valid next states for this task
-							setValidNextStates(validStates)
-						}
+					// Calculate valid next states for the current task state
+					if (data.task_type_id && data.state_id) {
+						const validStates = await calculateValidNextStates(data.task_type_id, data.state_id)
+						setValidNextStates(validStates)
 					}
 				}
 			} catch (err: any) {
@@ -191,6 +201,12 @@ export default function TaskDetail() {
 
 			// Update local state
 			setTask(result.data)
+
+			// Recalculate valid next states if the task type or state changed
+			if (result.data.task_type_id && result.data.state_id) {
+				const newValidStates = await calculateValidNextStates(result.data.task_type_id, result.data.state_id)
+				setValidNextStates(newValidStates)
+			}
 		} catch (err: any) {
 			console.error('Error updating task:', err)
 			setError(err.message || 'Failed to update task')

@@ -230,8 +230,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             const isValidTransition = transitions.some((t: any) => 
               // Direct transition from current state to new state
               (t.from_state === existingTask.state_id && t.to_state === state_id) ||
-              // Universal transition (from any state) - represented by special UUID
-              (t.from_state === '00000000-0000-0000-0000-000000000000' && t.to_state === state_id)
+              // Universal transition (from any state) - represented by NULL in database
+              (t.from_state === null && t.to_state === state_id)
             );
             
             if (!isValidTransition) {
