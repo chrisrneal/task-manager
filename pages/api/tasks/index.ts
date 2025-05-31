@@ -28,75 +28,38 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { 
+  authenticateRequest, 
+  handleApiOperation, 
+  sendErrorResponse, 
+  validateRequiredParams,
+  checkResourceOwnership
+} from '@/utils/apiMiddleware';
+import { validateFieldValues } from '@/utils/customFieldUtils';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
-  const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/tasks - Request received`);
+  
+  // Authenticate request and get user context
+  const context = await authenticateRequest(req, res, '/api/tasks');
+  if (!context) return; // Authentication failed, response already sent
 
-  // Extract user token from request
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
+  const { user, supabase, traceId } = context;
 
-  if (!token) {
-    console.log(`[${traceId}] Error: No authorization token provided`);
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      traceId
-    });
-  }
-
-  // Create a Supabase client with the user's token for RLS
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `Bearer ${token}` } }
-  });
-
-  // Verify the user session
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
-    return res.status(401).json({ 
-      error: 'Invalid authentication',
-      traceId
-    });
-  }
-
-  try {
+  await handleApiOperation(async () => {
     // Handle GET request - List tasks for a project
     if (method === 'GET') {
       const { projectId } = req.query;
       
-      if (!projectId) {
-        console.log(`[${traceId}] Error: Missing required query parameter 'projectId'`);
-        return res.status(400).json({ 
-          error: 'Project ID is required',
-          traceId
-        });
+      if (!validateRequiredParams({ 'Project ID': projectId }, res, traceId)) {
+        return;
       }
 
-      // First check if project exists and belongs to user
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (projectError) {
-        if (projectError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Project not found or access denied - ${projectId}`);
-          return res.status(404).json({ 
-            error: 'Project not found or access denied',
-            traceId
-          });
-        }
-        throw projectError;
-      }
+      // Check if project exists and belongs to user
+      const project = await checkResourceOwnership(
+        supabase, 'projects', projectId as string, user.id, res, traceId
+      );
+      if (!project) return; // Response already sent
 
       // Fetch tasks for this project
       const { data, error } = await supabase
@@ -106,8 +69,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error(`[${traceId}] Error fetching tasks: ${error.message}`);
-        return res.status(500).json({ error: error.message, traceId });
+        return sendErrorResponse(res, 500, error.message, traceId);
       }
 
       console.log(`[${traceId}] GET /api/tasks - Success, returned ${data.length} tasks`);
@@ -120,32 +82,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       console.log(`[${traceId}] POST body:`, req.body);
       
-      if (!name || !project_id) {
-        console.log(`[${traceId}] Error: Missing required fields`);
-        return res.status(400).json({ 
-          error: 'Task name and project ID are required',
-          traceId
-        });
+      if (!validateRequiredParams({ name, project_id }, res, traceId)) {
+        return;
       }
 
-      // First check if project exists and belongs to user
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', project_id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (projectError) {
-        if (projectError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Project not found or access denied - ${project_id}`);
-          return res.status(404).json({ 
-            error: 'Project not found or access denied',
-            traceId
-          });
-        }
-        throw projectError;
-      }
+      // Check if project exists and belongs to user
+      const project = await checkResourceOwnership(
+        supabase, 'projects', project_id, user.id, res, traceId
+      );
+      if (!project) return; // Response already sent
 
       // Validate assignee_id if provided
       if (assignee_id) {
@@ -158,10 +103,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
         if (assigneeError || !assigneeMember) {
           console.log(`[${traceId}] Error: Assignee not found in project - ${assignee_id}`);
-          return res.status(400).json({ 
-            error: 'Assignee must be a member of the project',
-            traceId
-          });
+          return sendErrorResponse(res, 400, 'Assignee must be a member of the project', traceId);
         }
       }
 
@@ -183,10 +125,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
         if (ttfError) {
           console.error(`[${traceId}] Error fetching task type fields: ${ttfError.message}`);
-          return res.status(500).json({ 
-            error: 'Failed to validate task type fields',
-            traceId
-          });
+          return sendErrorResponse(res, 500, 'Failed to validate task type fields', traceId);
         }
 
         // Validate that fields belong to the same project
@@ -196,10 +135,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
         if (invalidProjectFields.length > 0) {
           console.log(`[${traceId}] Error: Task type fields don't belong to project`);
-          return res.status(400).json({ 
-            error: 'Task type fields must belong to the same project',
-            traceId
-          });
+          return sendErrorResponse(res, 400, 'Task type fields must belong to the same project', traceId);
         }
 
         // Check required fields
@@ -211,23 +147,17 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           const fieldValue = field_values.find(fv => fv.field_id === requiredField.id);
           if (!fieldValue || !fieldValue.value || fieldValue.value.trim() === '') {
             console.log(`[${traceId}] Error: Required field missing value - ${requiredField.name}`);
-            return res.status(400).json({ 
-              error: `Required field '${requiredField.name}' must have a value`,
-              traceId
-            });
+            return sendErrorResponse(res, 400, `Required field '${requiredField.name}' must have a value`, traceId);
           }
         }
 
         // Validate that all provided fields belong to the task type
-        const assignedFieldIds = taskTypeFields.map(ttf => ttf.field_id);
-        const invalidFields = field_values.filter(fv => !assignedFieldIds.includes(fv.field_id));
+        const assignedFieldIds = taskTypeFields.map((ttf: any) => ttf.field_id);
+        const invalidFields = field_values.filter((fv: any) => !assignedFieldIds.includes(fv.field_id));
         
         if (invalidFields.length > 0) {
           console.log(`[${traceId}] Error: Fields not assigned to task type`);
-          return res.status(400).json({ 
-            error: 'All fields must be assigned to the task type',
-            traceId
-          });
+          return sendErrorResponse(res, 400, 'All fields must be assigned to the task type', traceId);
         }
       }
       
@@ -283,18 +213,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Handle unsupported methods
     console.log(`[${traceId}] Error: Method ${method} not allowed`);
     res.setHeader('Allow', ['GET', 'POST']);
-    return res.status(405).json({ 
-      error: `Method ${method} not allowed`,
-      traceId
-    });
-  } catch (error: any) {
-    console.error(`[${traceId}] Error: ${error.message}`);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message,
-      traceId
-    });
-  }
+    return sendErrorResponse(res, 405, `Method ${method} not allowed`, traceId);
+  }, res, traceId, 'Internal server error');
 };
 
 export default handler;

@@ -1,45 +1,24 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { 
+  authenticateRequest, 
+  handleApiOperation, 
+  sendErrorResponse, 
+  validateRequiredParams,
+  handleNotFoundError,
+  checkResourceOwnership
+} from '@/utils/apiMiddleware';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { id } = req.query;
   
-  // Generate trace ID for request logging
-  const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/projects/${id} - Request received`);
+  // Authenticate request and get user context
+  const context = await authenticateRequest(req, res, `/api/projects/${id}`);
+  if (!context) return; // Authentication failed, response already sent
 
-  // Extract user token from request
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
-  if (!token) {
-    console.log(`[${traceId}] Error: No authorization token provided`);
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      traceId
-    });
-  }
+  const { user, supabase, traceId } = context;
 
-  // Create a Supabase client with the user's token for RLS
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: 'Bearer ' + token } }
-  });
-
-  // Verify the user session
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
-    return res.status(401).json({ 
-      error: 'Invalid authentication',
-      traceId
-    });
-  }
-
-  try {
+  await handleApiOperation(async () => {
     // Handle GET request - Get a single project
     if (method === 'GET') {
       const { data, error } = await supabase
@@ -50,12 +29,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Project not found - ${id}`);
-          return res.status(404).json({ 
-            error: 'Project not found',
-            traceId
-          });
+        if (handleNotFoundError(error, res, traceId, 'Project not found')) {
+          return;
         }
         throw error;
       }
@@ -68,39 +43,21 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (method === 'PUT') {
       const { name, description } = req.body;
       
-      if (!name) {
-        console.log(`[${traceId}] Error: Missing required field 'name'`);
-        return res.status(400).json({ 
-          error: 'Name is required',
-          traceId
-        });
+      if (!validateRequiredParams({ name }, res, traceId)) {
+        return;
       }
 
-      // First check if project exists and belongs to user
-      const { data: existingProject, error: findError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (findError) {
-        if (findError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Project not found or access denied - ${id}`);
-          return res.status(404).json({ 
-            error: 'Project not found or access denied',
-            traceId
-          });
-        }
-        throw findError;
-      }
+      // Check if project exists and belongs to user
+      const existingProject = await checkResourceOwnership(
+        supabase, 'projects', id as string, user.id, res, traceId
+      );
+      if (!existingProject) return; // Response already sent
 
       const { data, error } = await supabase
         .from('projects')
         .update({ 
           name, 
           description: description || null
-          // Removed updated_at field as it's likely managed by the database
         })
         .eq('id', id)
         .eq('user_id', user.id)
@@ -114,24 +71,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle DELETE request - Delete a project
     if (method === 'DELETE') {
-      // First check if project exists and belongs to user
-      const { data: existingProject, error: findError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (findError) {
-        if (findError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Project not found or access denied - ${id}`);
-          return res.status(404).json({ 
-            error: 'Project not found or access denied',
-            traceId
-          });
-        }
-        throw findError;
-      }
+      // Check if project exists and belongs to user
+      const existingProject = await checkResourceOwnership(
+        supabase, 'projects', id as string, user.id, res, traceId
+      );
+      if (!existingProject) return; // Response already sent
 
       const { error } = await supabase
         .from('projects')
@@ -147,18 +91,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle unsupported methods
     console.log(`[${traceId}] Error: Method ${method} not allowed`);
-    return res.status(405).json({ 
-      error: `Method ${method} not allowed`,
-      traceId
-    });
-  } catch (error: any) {
-    console.error(`[${traceId}] Error: ${error.message}`);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message,
-      traceId
-    });
-  }
+    res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
+    return sendErrorResponse(res, 405, `Method ${method} not allowed`, traceId);
+  }, res, traceId, 'Internal server error');
 };
 
 export default handler;

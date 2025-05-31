@@ -166,6 +166,66 @@ export function validateRequiredParams(
 }
 
 /**
+ * Handle Supabase not found errors with custom response
+ * 
+ * @param error - Supabase error object
+ * @param res - Next.js response object
+ * @param traceId - Request trace ID
+ * @param message - Custom not found message
+ * @returns True if error was handled, false otherwise
+ */
+export function handleNotFoundError(
+  error: any,
+  res: NextApiResponse,
+  traceId: string,
+  message: string = 'Resource not found'
+): boolean {
+  if (error?.code === 'PGRST116') {
+    sendErrorResponse(res, 404, message, traceId);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Check if resource exists and belongs to user
+ * 
+ * @param supabase - Authenticated Supabase client
+ * @param table - Table name
+ * @param id - Resource ID
+ * @param userId - User ID for ownership check
+ * @param res - Next.js response object
+ * @param traceId - Request trace ID
+ * @param notFoundMessage - Custom not found message
+ * @returns Resource data if found, null if not found (response already sent)
+ */
+export async function checkResourceOwnership(
+  supabase: any,
+  table: string,
+  id: string,
+  userId: string,
+  res: NextApiResponse,
+  traceId: string,
+  notFoundMessage: string = 'Resource not found or access denied'
+): Promise<any | null> {
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    if (handleNotFoundError(error, res, traceId, notFoundMessage)) {
+      return null;
+    }
+    throw error;
+  }
+
+  return data;
+}
+
+/**
  * Handle try-catch wrapper for API endpoints
  * 
  * @param operation - Async operation to execute
