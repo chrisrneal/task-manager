@@ -60,14 +60,14 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
               const data = JSON.parse(e.dataTransfer.getData('text/plain'));
               const { taskId } = data;
               const taskToMove = tasks.find(t => t.id === taskId);
-              if (taskToMove && taskToMove.status !== TASK_STATUSES.TODO) {
+              if (taskToMove) {
                 // Check if this transition is valid according to workflow rules
                 const validStates = getNextValidStates(taskToMove, true);
                 const todoState = states.find(s => s.name.toLowerCase().includes('todo') || s.name.toLowerCase().includes('backlog'));
                 
                 // Only allow transition if it's valid in the workflow or if no workflow states defined
                 if (!todoState || validStates.some(s => s.id === todoState.id) || validStates.length === states.length) {
-                  handleToggleTaskStatus(taskId, taskToMove.status);
+                  handleToggleTaskStatus(taskId, taskToMove.state_id || '');
                 } else {
                   console.warn('Invalid workflow transition attempted');
                 }
@@ -86,11 +86,8 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
               {groupedTasks[TASK_STATUSES.TODO].map(task => (
                 <div
                   key={task.id}
-                  className={`border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 
-                    shadow-sm hover:shadow transition-all cursor-move
-                    ${task.priority === 'high' ? 'border-l-4 border-l-red-500' : 
-                      task.priority === 'medium' ? 'border-l-4 border-l-yellow-500' : 
-                      'border-l-4 border-l-green-500'}`}
+                  className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 
+                    shadow-sm hover:shadow transition-all cursor-move"
                   draggable={true}
                 >
                   <div className="flex justify-between items-start">
@@ -117,19 +114,6 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                   
                   {/* Task metadata as tags */}
                   <div className="flex items-center mt-2 text-xs text-zinc-500 flex-wrap gap-1">
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs
-                      ${task.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
-                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' : 
-                        'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}>
-                      {task.priority}
-                    </span>
-                    
-                    {task.due_date && (
-                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 dark:bg-zinc-700 dark:text-zinc-300 rounded-full text-xs">
-                        Due: {new Date(task.due_date).toLocaleDateString()}
-                      </span>
-                    )}
-                    
                     {task.task_type_id && (
                       <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
@@ -172,7 +156,7 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
               const data = JSON.parse(e.dataTransfer.getData('text/plain'));
               const { taskId } = data;
               const taskToMove = tasks.find(t => t.id === taskId);
-              if (taskToMove && taskToMove.status !== TASK_STATUSES.IN_PROGRESS) {
+              if (taskToMove) {
                 // Check if this transition is valid according to workflow rules
                 const validStates = getNextValidStates(taskToMove, true);
                 const inProgressState = states.find(s => s.name.toLowerCase().includes('progress') || s.name.toLowerCase().includes('doing'));
@@ -180,7 +164,7 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                 // Only allow transition if it's valid in the workflow or if no workflow states defined
                 if (!inProgressState || validStates.some(s => s.id === inProgressState.id) || validStates.length === states.length) {
                   // Update the task to "in progress"
-                  handleToggleTaskStatus(taskId, taskToMove.status);
+                  handleToggleTaskStatus(taskId, taskToMove.state_id || '');
                 } else {
                   console.warn('Invalid workflow transition attempted');
                 }
@@ -199,11 +183,8 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
               {groupedTasks[TASK_STATUSES.IN_PROGRESS].map(task => (
                 <div
                   key={task.id}
-                  className={`border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 
-                    shadow-sm hover:shadow transition-all cursor-move
-                    ${task.priority === 'high' ? 'border-l-4 border-l-red-500' : 
-                      task.priority === 'medium' ? 'border-l-4 border-l-yellow-500' : 
-                      'border-l-4 border-l-green-500'}`}
+                  className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 
+                    shadow-sm hover:shadow transition-all cursor-move"
                   draggable={true}
                 >
                   <div className="flex justify-between items-start">
@@ -228,19 +209,6 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                   )}
                   
                   <div className="flex items-center mt-2 text-xs text-zinc-500 flex-wrap gap-1">
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs
-                      ${task.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
-                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' : 
-                        'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}>
-                      {task.priority}
-                    </span>
-                    
-                    {task.due_date && (
-                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 dark:bg-zinc-700 dark:text-zinc-300 rounded-full text-xs">
-                        Due: {new Date(task.due_date).toLocaleDateString()}
-                      </span>
-                    )}
-                    
                     {task.task_type_id && (
                       <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
@@ -283,14 +251,14 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
               const data = JSON.parse(e.dataTransfer.getData('text/plain'));
               const { taskId } = data;
               const taskToMove = tasks.find(t => t.id === taskId);
-              if (taskToMove && taskToMove.status !== TASK_STATUSES.DONE) {
+              if (taskToMove) {
                 // Check if this transition is valid according to workflow rules
                 const validStates = getNextValidStates(taskToMove, true);
                 const doneState = states.find(s => s.name.toLowerCase().includes('done') || s.name.toLowerCase().includes('complete'));
                 
                 // Only allow transition if it's valid in the workflow or if no workflow states defined
                 if (!doneState || validStates.some(s => s.id === doneState.id) || validStates.length === states.length) {
-                  handleToggleTaskStatus(taskId, taskToMove.status);
+                  handleToggleTaskStatus(taskId, taskToMove.state_id || '');
                 } else {
                   console.warn('Invalid workflow transition attempted');
                 }
@@ -309,11 +277,8 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
               {groupedTasks[TASK_STATUSES.DONE].map(task => (
                 <div
                   key={task.id}
-                  className={`border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 
-                    shadow-sm hover:shadow transition-all cursor-move opacity-70
-                    ${task.priority === 'high' ? 'border-l-4 border-l-red-500' : 
-                      task.priority === 'medium' ? 'border-l-4 border-l-yellow-500' : 
-                      'border-l-4 border-l-green-500'}`}
+                  className="border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 
+                    shadow-sm hover:shadow transition-all cursor-move opacity-70"
                   draggable={true}
                 >
                   <div className="flex justify-between items-start">
@@ -338,19 +303,6 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                   )}
                   
                   <div className="flex items-center mt-2 text-xs text-zinc-500 flex-wrap gap-1">
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs
-                      ${task.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
-                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' : 
-                        'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}>
-                      {task.priority}
-                    </span>
-                    
-                    {task.due_date && (
-                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 dark:bg-zinc-700 dark:text-zinc-300 rounded-full text-xs">
-                        Due: {new Date(task.due_date).toLocaleDateString()}
-                      </span>
-                    )}
-                    
                     {task.task_type_id && (
                       <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}

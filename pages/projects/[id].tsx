@@ -12,13 +12,6 @@ import { supabase } from '@/utils/supabaseClient';
 import { Project, Task, TaskWithFieldValues, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue, ProjectMemberWithUser } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 
-// Define task statuses if not already from enums (used for default in form)
-const TASK_STATUSES = {
-  TODO: 'todo',
-  IN_PROGRESS: 'in_progress',
-  DONE: 'done'
-};
-
 const ProjectDetail = () => {
   const router = useRouter();
   const { id: projectId } = router.query;
@@ -74,9 +67,6 @@ const ProjectDetail = () => {
   const [currentTask, setCurrentTask] = useState<TaskWithFieldValues | null>(null);
   const [taskName, setTaskName] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
-  const [taskStatus, setTaskStatus] = useState(TASK_STATUSES.TODO);
-  const [taskPriority, setTaskPriority] = useState('medium');
-  const [taskDueDate, setTaskDueDate] = useState('');
   const [taskAssigneeId, setTaskAssigneeId] = useState<string | null>(null);
   const [taskTypeId, setTaskTypeId] = useState<string | null>(null);
   const [taskStateId, setTaskStateId] = useState<string | null>(null);
@@ -385,9 +375,6 @@ const ProjectDetail = () => {
     setCurrentTask({...task, field_values: []});
     setTaskName(task.name);
     setTaskDescription(task.description || '');
-    setTaskStatus(task.status);
-    setTaskPriority(task.priority);
-    setTaskDueDate(task.due_date ? task.due_date.split('T')[0] : '');
     setTaskAssigneeId(task.assignee_id);
     setTaskTypeId(task.task_type_id);
     setTaskStateId(task.state_id);
@@ -631,14 +618,6 @@ const ProjectDetail = () => {
           valueB = b.assignee_id 
             ? (projectMembers.find(m => m.user_id === b.assignee_id)?.name || '').toLowerCase() 
             : '';
-          break;
-        case 'priority':
-          valueA = a.priority || '';
-          valueB = b.priority || '';
-          break;
-        case 'due_date':
-          valueA = a.due_date || '';
-          valueB = b.due_date || '';
           break;
         default:
           valueA = a.name.toLowerCase();
@@ -903,42 +882,12 @@ const ProjectDetail = () => {
                         <th 
                           scope="col" 
                           className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
-                          onClick={() => handleSort('priority')}
-                          aria-sort={sortField === 'priority' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                        >
-                          <div className="flex items-center">
-                            <span>Priority</span>
-                            {sortField === 'priority' && (
-                              <span className="ml-1" aria-hidden="true">
-                                {sortDirection === 'asc' ? '↑' : '↓'}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          scope="col" 
-                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
                           onClick={() => handleSort('assignee')}
                           aria-sort={sortField === 'assignee' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
                         >
                           <div className="flex items-center">
                             <span>Assignee</span>
                             {sortField === 'assignee' && (
-                              <span className="ml-1" aria-hidden="true">
-                                {sortDirection === 'asc' ? '↑' : '↓'}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          scope="col" 
-                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
-                          onClick={() => handleSort('due_date')}
-                          aria-sort={sortField === 'due_date' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                        >
-                          <div className="flex items-center">
-                            <span>Due Date</span>
-                            {sortField === 'due_date' && (
                               <span className="ml-1" aria-hidden="true">
                                 {sortDirection === 'asc' ? '↑' : '↓'}
                               </span>
@@ -1010,25 +959,11 @@ const ProjectDetail = () => {
                                 </span>
                               </td>
                               <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
-                                <span className={`capitalize ${
-                                  task.priority === 'high' 
-                                    ? 'text-red-600 dark:text-red-400' 
-                                    : task.priority === 'medium'
-                                      ? 'text-yellow-600 dark:text-yellow-400'
-                                      : 'text-green-600 dark:text-green-400'
-                                }`}>
-                                  {task.priority}
-                                </span>
-                              </td>
-                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
                                 {(() => {
                                   if (!task.assignee_id) return '-';
                                   const assignee = projectMembers.find(m => m.user_id === task.assignee_id);
                                   return assignee ? assignee.name : 'Unknown';
                                 })()}
-                              </td>
-                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
-                                {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
                               </td>
                               <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
                                 {typeName ? (
@@ -1124,9 +1059,6 @@ const ProjectDetail = () => {
                       project_id: projectId as string,
                       owner_id: user.id,
                       assignee_id: task.assignee_id,
-                      status: task.status,
-                      priority: task.priority,
-                      due_date: task.due_date || null,
                       created_at: isEditing ? currentTask!.created_at : new Date().toISOString(),
                       updated_at: new Date().toISOString(),
                       task_type_id: task.task_type_id,
@@ -1150,9 +1082,6 @@ const ProjectDetail = () => {
                         description: task.description || null,
                         project_id: projectId,
                         assignee_id: task.assignee_id,
-                        status: task.status,
-                        priority: task.priority,
-                        due_date: task.due_date || null,
                         task_type_id: task.task_type_id,
                         state_id: task.state_id,
                         field_values: task.field_values
