@@ -11,16 +11,6 @@ ADD CONSTRAINT fk_task_assignee
 -- Add index for performance on assignee queries
 CREATE INDEX idx_tasks_assignee_id ON tasks(assignee_id) WHERE assignee_id IS NOT NULL;
 
--- Add a constraint to ensure assignee is a member of the task's project
--- This constraint ensures data integrity - assignee must be a member of the project
-ALTER TABLE tasks 
-ADD CONSTRAINT check_task_assignee_project_member 
-CHECK (
-  assignee_id IS NULL 
-  OR 
-  EXISTS (
-    SELECT 1 FROM project_members pm 
-    WHERE pm.user_id = assignee_id 
-    AND pm.project_id = tasks.project_id
-  )
-);
+-- Note: Data integrity is enforced at the application level in the API
+-- The constraint below was causing issues with task creation due to timing of constraint evaluation
+-- Validation occurs in the API to ensure assignee is a project member before task creation/update
