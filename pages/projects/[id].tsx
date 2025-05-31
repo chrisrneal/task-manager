@@ -1092,6 +1092,8 @@ const ProjectDetail = () => {
                     console.log(`[${traceId}] Task ${isEditing ? 'updated' : 'created'} successfully: ${result.data.id}`);
                     if (!isEditing) {
                       setTasks(prev => prev.map(t => t.id === tempId ? result.data : t));
+                      // Redirect to task detail page with edit toggle enabled
+                      router.push(`/tasks/${result.data.id}?edit=true`);
                     }
                     setIsTaskModalOpen(false);
                     setTaskName('');

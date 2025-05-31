@@ -148,7 +148,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const renderField = (field: Field) => {
     const value = fieldValues[field.id] || '';
     const error = fieldErrors[field.id];
-    const isDisabled = mode === 'view';
+    const isDisabled = mode === 'view' && !allowEditing;
     
     const commonProps = {
       id: `field_${field.id}`,

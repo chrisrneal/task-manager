@@ -2,11 +2,11 @@ import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/utils/supabaseClient'
 import TaskForm from '@/components/TaskForm'
-import { Task, TaskFieldValue, TaskWithFieldValues, TaskType } from '@/types/database'
+import { Task, TaskFieldValue, TaskWithFieldValues, TaskType, ProjectMemberWithUser } from '@/types/database'
 
 export default function TaskDetail() {
 	const router = useRouter()
-	const { taskId } = router.query
+	const { taskId, edit } = router.query
 	const [task, setTask] = useState<TaskWithFieldValues | null>(null)
 	const [fieldValues, setFieldValues] = useState<TaskFieldValue[]>([])
 	const [loading, setLoading] = useState(true)
@@ -15,6 +15,38 @@ export default function TaskDetail() {
 	const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([])
 	const [validNextStates, setValidNextStates] = useState<string[]>([])
 	const [isEditing, setIsEditing] = useState(false)
+	const [projectMembers, setProjectMembers] = useState<ProjectMemberWithUser[]>([])
+
+	// Update isEditing when router query becomes available
+	useEffect(() => {
+		if (edit === 'true') {
+			setIsEditing(true)
+		}
+	}, [edit])
+
+	// Fetch project members
+	const fetchProjectMembers = async (projectId: string) => {
+		try {
+			const { data: sessionData } = await supabase.auth.getSession()
+			const token = sessionData.session?.access_token
+			if (!token) throw new Error('No authentication token available')
+			
+			const response = await fetch(`/api/projects/${projectId}/members`, {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer ' + token
+				}
+			})
+			
+			if (!response.ok) throw new Error(`Error: ${response.status}`)
+			const result = await response.json()
+			setProjectMembers(result.data || [])
+		} catch (err: any) {
+			console.error('Error fetching project members:', err.message)
+			// Not critical for main functionality, so we don't throw
+		}
+	}
 
 	useEffect(() => {
 		if (!taskId) return
@@ -68,6 +100,9 @@ export default function TaskDetail() {
 						id: state.id,
 						name: state.name
 					})) || [])
+
+					// Fetch project members
+					await fetchProjectMembers(data.project_id)
 
 					// Get the workflow for the task's type to determine valid next states
 					if (data.task_type_id) {
@@ -231,6 +266,7 @@ export default function TaskDetail() {
 					onSubmit={handleTaskFormSubmit}
 					onCancel={handleTaskFormCancel}
 					allowEditing={isEditing}
+					projectMembers={projectMembers}
 				/>
 			</div>
 		</div>

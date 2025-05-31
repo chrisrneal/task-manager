@@ -27,6 +27,8 @@
 - 🚀 Dynamic task board with workflow states
 - 🔄 Workflow-driven task transitions
 - 📎 Secure file uploads for task attachments
+- ⚡ Streamlined task creation with automatic redirect to edit mode
+- 👥 Smart assignment dropdown with project member display
 
 ## Task Fields
 
@@ -57,6 +59,24 @@ The application allows users to:
 - Organize tasks in customizable boards
 - Track task progress through workflows
 - Attach files (images, PDFs) to tasks with secure access control
+
+### Task Creation Workflow
+
+When creating a new task from a project page, the application provides a streamlined workflow:
+
+1. **Create Task**: Fill out the task creation form with name, description, task type, and custom fields
+2. **Automatic Redirect**: After successful creation, you're automatically redirected to the task detail page
+3. **Edit Mode Enabled**: The task detail page opens with edit mode automatically enabled (indicated by the `?edit=true` URL parameter)
+4. **Immediate Editing**: You can immediately continue editing the task without additional navigation or clicking the edit button
+
+This workflow improvement eliminates the need to manually navigate to the newly created task and enables immediate editing, making the task creation process more efficient.
+
+### Task Assignment
+
+Tasks can be assigned to project members through an assignment dropdown that:
+- **Shows Current Assignment**: Displays the currently assigned user as the selected option
+- **Lists Project Members**: Shows all project members with their names and roles (e.g., "John Doe (admin)")
+- **Dynamic Updates**: Updates in real-time when project membership changes
 
 ## Task Files
 
