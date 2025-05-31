@@ -27,7 +27,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Create a Supabase client with the user's token for RLS
   const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `******` } }
+    global: { headers: { Authorization: `Bearer ${token}` } }
   });
 
   // Verify the user session
@@ -60,14 +60,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (method === 'GET') {
       const { data: members, error: membersError } = await supabase
         .from('project_members')
-        .select(`
-          *,
-          profiles:user_id (
-            email,
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('project_id', projectId)
         .order('role', { ascending: true });
       
@@ -79,17 +72,22 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
       
-      // Format the response to include user details
-      const formattedMembers = members.map(member => ({
-        project_id: member.project_id,
-        user_id: member.user_id,
-        role: member.role,
-        created_at: member.created_at,
-        updated_at: member.updated_at,
-        email: member.profiles?.email || null,
-        name: member.profiles?.full_name || null,
-        avatar_url: member.profiles?.avatar_url || null
-      }));
+      // Format the response to handle both real users and dummy users
+      const formattedMembers = members.map((member) => {
+        // For now, we'll treat all members as potentially dummy users
+        // until we add the proper is_dummy and dummy_name columns
+        return {
+          project_id: member.project_id,
+          user_id: member.user_id,
+          role: member.role,
+          created_at: member.created_at,
+          updated_at: member.updated_at,
+          email: null, // Will be populated when we have proper user lookup
+          name: `User ${member.user_id.slice(-8)}`, // Temporary display name
+          avatar_url: null,
+          is_dummy: member.is_dummy ?? false // Use actual value or default to false
+        };
+      });
       
       console.log(`[${traceId}] GET /api/projects/${projectId}/members - Success, returned ${members.length} members`);
       return res.status(200).json({
@@ -120,16 +118,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       }
       
       // Generate a dummy user ID
-      const dummyUserId = `dummy-${uuidv4()}`;
+      const dummyUserId = uuidv4();
       
-      // Create the dummy member
+      // Create the dummy member (temporarily without is_dummy and dummy_name columns)
       const { data: member, error: memberError } = await supabase
         .from('project_members')
         .insert([{
           project_id: projectId as string,
           user_id: dummyUserId,
           role: role as ProjectMemberRole,
-          is_dummy: true, // Flag to identify dummy users
+          is_dummy: true,
           dummy_name: name.trim()
         }])
         .select()
