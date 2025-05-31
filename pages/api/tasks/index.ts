@@ -1,3 +1,19 @@
+/**
+ * @fileoverview Tasks Collection API - Task Listing and Creation
+ * 
+ * This API endpoint manages task collections within projects, enabling:
+ * - Listing all tasks for a specific project
+ * - Creating new tasks with custom field values
+ * - Validating custom field requirements during task creation
+ * - Ensuring project access permissions for all operations
+ * 
+ * The endpoint integrates with the custom fields system to support
+ * structured data capture during task creation.
+ * 
+ * @route GET  /api/tasks?projectId={id} - List all tasks for a project
+ * @route POST /api/tasks - Create a new task with optional field values
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -5,6 +21,23 @@ import { v4 as uuidv4 } from 'uuid';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+/**
+ * Tasks Collection API Handler - Manages task listing and creation
+ * 
+ * Handles GET and POST operations for task collections with comprehensive
+ * validation including project access, custom fields, and required field constraints.
+ * 
+ * @param req - Next.js API request object
+ * @param req.query.projectId - Project ID for listing tasks (GET requests)
+ * @param req.body.name - Task name (required for POST requests)
+ * @param req.body.description - Task description (optional)
+ * @param req.body.project_id - Project ID for the new task (required for POST)
+ * @param req.body.task_type_id - Task type ID for field validation (optional)
+ * @param req.body.state_id - Initial state ID for the task (optional)
+ * @param req.body.field_values - Array of custom field values (optional)
+ * @param res - Next.js API response object
+ * @returns JSON response with task data, validation errors, or operation status
+ */
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
 
@@ -40,7 +73,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   try {
-    // Handle GET request - List tasks for a project
+    // Handle GET request - List all tasks for a project
     if (method === 'GET') {
       const { projectId } = req.query;
       
@@ -52,7 +85,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // First check if project exists and belongs to user
+      // Verify user has access to the project before listing tasks
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('*')
@@ -71,7 +104,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         throw projectError;
       }
 
-      // Fetch tasks for this project
+      // Retrieve all tasks for the project ordered by creation date (newest first)
+      // Note: This endpoint returns basic task data without field values for performance
+      // Use GET /api/tasks/[taskId] to get a task with its field values
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -87,7 +122,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return res.status(200).json({ data, traceId });
     }
     
-    // Handle POST request - Create a new task
+    // Handle POST request - Create a new task with optional custom field values
     if (method === 'POST') {
       const { name, description, project_id, task_type_id, state_id, field_values } = req.body;
 
@@ -101,7 +136,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // First check if project exists and belongs to user
+      // Verify user has access to the project before creating tasks
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('*')
@@ -120,9 +155,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         throw projectError;
       }
 
-      // Validate custom fields if task type is provided and field values are included
+      // Validate custom fields if task type and field values are provided
+      // This ensures proper field validation during task creation
       if (task_type_id && field_values && Array.isArray(field_values)) {
-        // Get required fields for this task type
+        // Get all fields assigned to this task type with their definitions
         const { data: taskTypeFields, error: ttfError } = await supabase
           .from('task_type_fields')
           .select(`
@@ -144,7 +180,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           });
         }
 
-        // Validate that fields belong to the same project
+        // Validate that all fields belong to the same project as the task
+        // This ensures project scope integrity for field assignments
         const invalidProjectFields = taskTypeFields
           .map((ttf: any) => ttf.fields)
           .filter((field: any) => field && field.project_id !== project_id);
@@ -157,7 +194,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           });
         }
 
-        // Check required fields
+        // Validate required fields have values
+        // All required fields must have non-empty values during task creation
         const requiredFields = taskTypeFields
           .map((ttf: any) => ttf.fields)
           .filter((field: any) => field && field.is_required);
@@ -173,7 +211,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           }
         }
 
-        // Validate that all provided fields belong to the task type
+        // Validate that all provided fields are assigned to the task type
+        // This prevents setting values for fields not configured for this task type
         const assignedFieldIds = taskTypeFields.map(ttf => ttf.field_id);
         const invalidFields = field_values.filter(fv => !assignedFieldIds.includes(fv.field_id));
         
@@ -186,6 +225,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
       }
       
+      // Prepare task data for insertion
       const insertPayload = {
         name,
         description: description || null,
@@ -197,6 +237,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       
       console.log(`[${traceId}] Insert payload:`, insertPayload);
 
+      // Create the new task in the database
       const { data, error } = await supabase
         .from('tasks')
         .insert([insertPayload])
@@ -211,8 +252,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Insert field values if provided
+      // Insert custom field values if provided
+      // This happens after task creation to ensure referential integrity
       if (field_values && Array.isArray(field_values) && field_values.length > 0) {
+        // Prepare field values for insertion with the new task ID
         const fieldValuesToInsert = field_values.map(fv => ({
           task_id: data.id,
           field_id: fv.field_id,
@@ -226,7 +269,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         if (fieldValuesError) {
           console.error(`[${traceId}] Error inserting field values: ${fieldValuesError.message}`);
           // Consider whether to rollback the task creation or continue
-          // For now, we'll continue but log the error
+          // For now, we'll continue but log the error to allow task creation
+          // even if field values fail (graceful degradation)
         }
       }
 

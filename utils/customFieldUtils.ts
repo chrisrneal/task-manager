@@ -1,3 +1,18 @@
+/**
+ * @fileoverview Custom Fields Utility Functions
+ * 
+ * This module provides comprehensive utility functions for managing custom fields
+ * and their values within the task management system. It includes:
+ * - Field validation logic for different input types
+ * - Required field constraint enforcement
+ * - Project scope and task type assignment validation
+ * - Field value formatting for display
+ * - Field deletion safety checks
+ * 
+ * These utilities are used across the API endpoints to ensure consistent
+ * validation and business rule enforcement for the custom fields system.
+ */
+
 import { createClient } from '@supabase/supabase-js';
 
 // Define types locally to avoid import issues
@@ -22,10 +37,6 @@ export interface TaskFieldValue {
 
 export type FieldInputType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'radio';
 
-/**
- * Utility functions for custom field validation and operations
- */
-
 export interface FieldValidationError {
   field_id: string;
   field_name: string;
@@ -39,6 +50,20 @@ export interface FieldValidationResult {
 
 /**
  * Validates field values against their definitions and requirements
+ * 
+ * This is the primary validation function for custom field values, performing
+ * comprehensive checks including:
+ * - Field type validation (ensuring values match field input types)
+ * - Required field enforcement (ensuring required fields have values)
+ * - Project scope validation (ensuring fields belong to the task's project)
+ * - Task type assignment validation (ensuring fields are assigned to the task type)
+ * 
+ * @param supabase - Supabase client instance for database queries
+ * @param taskTypeId - Task type ID for assignment validation (null if no task type)
+ * @param projectId - Project ID for scope validation
+ * @param fieldValues - Array of field values to validate
+ * @returns Promise resolving to validation result with errors array
+ * @throws Error if database queries fail
  */
 export async function validateFieldValues(
   supabase: any,
@@ -160,6 +185,18 @@ export async function validateFieldValues(
 
 /**
  * Validates a single field value against its type definition
+ * 
+ * Performs type-specific validation for field values based on the field's input type.
+ * Each field type has specific validation rules:
+ * - number: Must be a valid numeric value
+ * - date: Must be a valid date string
+ * - checkbox: Must be boolean-like (true/false or 1/0)
+ * - text/textarea: Accept any string value
+ * - select/radio: Accept any string (options validation would be future enhancement)
+ * 
+ * @param field - Field definition with type and requirement information
+ * @param value - Value to validate (string or null)
+ * @returns Error message string if validation fails, null if valid
  */
 export function validateFieldValueType(field: Field, value: string | null): string | null {
   if (!value || value.trim() === '') {
@@ -210,6 +247,15 @@ export function validateFieldValueType(field: Field, value: string | null): stri
 
 /**
  * Checks if a field can be safely deleted (not used in any tasks)
+ * 
+ * Before allowing field deletion, this function verifies that no tasks
+ * currently have values for this field. This prevents data integrity
+ * issues and ensures existing task data is preserved.
+ * 
+ * @param supabase - Supabase client instance for database queries
+ * @param fieldId - UUID of the field to check for deletion safety
+ * @returns Promise resolving to true if field can be deleted, false otherwise
+ * @throws Error if database query fails
  */
 export async function canDeleteField(supabase: any, fieldId: string): Promise<boolean> {
   try {
@@ -231,6 +277,15 @@ export async function canDeleteField(supabase: any, fieldId: string): Promise<bo
 
 /**
  * Gets all fields assigned to a task type with their definitions
+ * 
+ * Retrieves complete field information for all fields assigned to a specific
+ * task type. This is useful for determining which fields should be available
+ * when creating or editing tasks of this type.
+ * 
+ * @param supabase - Supabase client instance for database queries
+ * @param taskTypeId - UUID of the task type to get fields for
+ * @returns Promise resolving to array of field definitions
+ * @throws Error if database query fails
  */
 export async function getTaskTypeFields(supabase: any, taskTypeId: string) {
   try {
@@ -262,6 +317,13 @@ export async function getTaskTypeFields(supabase: any, taskTypeId: string) {
 
 /**
  * Validates input type for field creation/update
+ * 
+ * Type guard function that ensures only supported field input types
+ * are accepted. This prevents creation of fields with unsupported types
+ * that could cause issues in the UI or validation logic.
+ * 
+ * @param inputType - String to validate as a field input type
+ * @returns True if inputType is a valid FieldInputType, false otherwise
  */
 export function isValidFieldInputType(inputType: string): inputType is FieldInputType {
   const validTypes: FieldInputType[] = ['text', 'textarea', 'number', 'date', 'select', 'checkbox', 'radio'];
@@ -270,6 +332,16 @@ export function isValidFieldInputType(inputType: string): inputType is FieldInpu
 
 /**
  * Sanitizes and validates field name
+ * 
+ * Performs comprehensive validation of field names to ensure they meet
+ * system requirements:
+ * - Must be non-empty string
+ * - Must be 1-100 characters in length
+ * - Must contain only alphanumeric characters, spaces, hyphens, underscores, and parentheses
+ * - Prevents creation of fields with invalid or problematic names
+ * 
+ * @param name - Field name string to validate
+ * @returns Error message string if validation fails, null if valid
  */
 export function validateFieldName(name: string): string | null {
   if (!name || typeof name !== 'string') {
@@ -295,6 +367,17 @@ export function validateFieldName(name: string): string | null {
 
 /**
  * Formats field value for display based on field type
+ * 
+ * Transforms raw field values into user-friendly display formats based on
+ * the field's input type. This provides consistent formatting across the UI:
+ * - checkbox: Converts boolean-like values to "Yes"/"No"
+ * - date: Formats date strings using locale-specific formatting
+ * - number: Formats numbers with locale-specific thousand separators
+ * - text/textarea/select/radio: Returns value as-is
+ * 
+ * @param field - Field definition containing input type information
+ * @param value - Raw field value to format (string or null)
+ * @returns Formatted string ready for display
  */
 export function formatFieldValue(field: Field, value: string | null): string {
   if (!value) return '';

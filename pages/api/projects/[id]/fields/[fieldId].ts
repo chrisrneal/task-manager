@@ -1,3 +1,20 @@
+/**
+ * @fileoverview Individual Field Management API
+ * 
+ * This API endpoint manages individual custom field operations within a project:
+ * - Retrieving a specific field with task type assignments
+ * - Updating field properties (name, type, requirements)
+ * - Safely deleting fields with usage validation
+ * - Ensuring field operations maintain data integrity
+ * 
+ * Field deletion includes safety checks to prevent deletion of fields that
+ * are currently used by tasks, preserving existing data.
+ * 
+ * @route GET    /api/projects/[id]/fields/[fieldId] - Get a specific field
+ * @route PUT    /api/projects/[id]/fields/[fieldId] - Update field properties
+ * @route DELETE /api/projects/[id]/fields/[fieldId] - Delete field if safe
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,6 +24,21 @@ import { isValidFieldInputType, validateFieldName, canDeleteField } from '../../
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+/**
+ * Individual Field API Handler - Manages single field operations
+ * 
+ * Handles GET, PUT, and DELETE operations for individual field resources
+ * with comprehensive validation and safety checks for field deletion.
+ * 
+ * @param req - Next.js API request object
+ * @param req.query.id - Project ID (UUID) containing the field
+ * @param req.query.fieldId - Field ID (UUID) to operate on
+ * @param req.body.name - New field name (for PUT requests)
+ * @param req.body.input_type - New input type (for PUT requests)
+ * @param req.body.is_required - New required status (for PUT requests)
+ * @param res - Next.js API response object
+ * @returns JSON response with field data, validation errors, or operation status
+ */
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { id: projectId, fieldId } = req.query;
