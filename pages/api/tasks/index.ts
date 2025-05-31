@@ -7,8 +7,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
-
-  // Generate trace ID for request logging
   const traceId = uuidv4();
   console.log(`[${traceId}] ${method} /api/tasks - Request received`);
 
@@ -89,7 +87,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle POST request - Create a new task
     if (method === 'POST') {
-      const { name, description, project_id, status, priority, due_date, task_type_id, state_id, field_values, assignee_id } = req.body;
+      const { name, description, project_id, task_type_id, state_id, field_values, assignee_id } = req.body;
 
       console.log(`[${traceId}] POST body:`, req.body);
       
@@ -210,9 +208,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         project_id,
         owner_id: user.id,
         assignee_id: assignee_id || null,
-        status: status || 'todo',
-        priority: priority || 'medium',
-        due_date: due_date || null,
         task_type_id: task_type_id || null,
         state_id: state_id || null
       };

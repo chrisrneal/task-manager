@@ -4,6 +4,8 @@
 
 This document outlines the complete Backend API & Logic implementation for Custom Fields in the task manager application. The implementation includes field definition management, task type field assignments, field value storage, and comprehensive validation.
 
+**Note**: As of the latest version, the traditional built-in Status, Priority, and Due Date fields have been migrated to the custom fields system. This provides greater flexibility while preserving all existing task data through automatic migration.
+
 ## Implemented Features
 
 ### 1. Field Definition Management APIs

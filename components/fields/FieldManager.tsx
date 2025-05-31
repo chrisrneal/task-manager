@@ -27,6 +27,12 @@ const FieldManager: React.FC<FieldManagerProps> = ({ projectId, taskTypes }) => 
   
   // State for editing a field
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    input_type: 'text' as FieldInputType,
+    is_required: false,
+    default_value: ''
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Field drag-and-drop state
@@ -269,6 +275,100 @@ const FieldManager: React.FC<FieldManagerProps> = ({ projectId, taskTypes }) => 
     }
   };
 
+  // Start editing a field
+  const handleStartEdit = (field: FieldWithAssignments) => {
+    setEditingField(field.id);
+    setEditForm({
+      name: field.name,
+      input_type: field.input_type,
+      is_required: field.is_required,
+      default_value: field.default_value || ''
+    });
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingField(null);
+    setEditForm({
+      name: '',
+      input_type: 'text',
+      is_required: false,
+      default_value: ''
+    });
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Handle edit form input changes
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setEditForm(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setEditForm(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  // Save field edits
+  const handleSaveEdit = async () => {
+    if (!editingField) return;
+    
+    setIsSubmitting(true);
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Updating field: ${editingField}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Update field via API
+      const response = await fetch(`/api/projects/${projectId}/fields/${editingField}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          name: editForm.name,
+          input_type: editForm.input_type,
+          is_required: editForm.is_required,
+          default_value: editForm.default_value
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update field');
+      }
+      
+      setSuccess('Field updated successfully');
+      console.log(`[${traceId}] Field updated successfully`);
+      
+      // Reset edit state
+      handleCancelEdit();
+      
+      // Refresh fields
+      fetchFields();
+    } catch (err: any) {
+      console.error('Error updating field:', err.message);
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Handle drag start
   const handleDragStart = (fieldId: string) => {
     setDraggedField(fieldId);
@@ -350,50 +450,152 @@ const FieldManager: React.FC<FieldManagerProps> = ({ projectId, taskTypes }) => 
             {fields.map((field) => (
               <li 
                 key={field.id}
-                draggable
+                draggable={editingField !== field.id}
                 onDragStart={() => handleDragStart(field.id)}
                 onDragOver={(e) => handleDragOver(e, field.id)}
                 onDrop={(e) => handleDrop(e, field.id)}
                 onDragEnd={handleDragEnd}
                 className={`
-                  p-3 border rounded-md flex items-center justify-between
+                  p-3 border rounded-md
                   ${dragOverField === field.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-zinc-200 dark:border-zinc-700'}
                   ${draggedField === field.id ? 'opacity-50' : 'opacity-100'}
-                  cursor-move
+                  ${editingField === field.id ? 'cursor-default' : 'cursor-move'}
                 `}
               >
-                <div className="flex-1 mr-4">
-                  <div className="flex items-center">
-                    <div className="text-sm font-medium">{field.name}</div>
-                    {field.is_required && (
-                      <span className="ml-2 text-xs px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded">
-                        Required
-                      </span>
-                    )}
-                    <span className="ml-2 text-xs px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded">
-                      {field.input_type}
-                    </span>
-                  </div>
-                  
-                  {field.task_type_ids && field.task_type_ids.length > 0 && (
-                    <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      Used in: {field.task_type_ids.map(typeId => {
-                        const taskType = taskTypes.find(t => t.id === typeId);
-                        return taskType?.name;
-                      }).filter(Boolean).join(', ')}
+                {editingField === field.id ? (
+                  // Edit mode
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                        Field Name
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={editForm.name}
+                        onChange={handleEditInputChange}
+                        className="w-full p-2 text-sm border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
+                        placeholder="Enter field name"
+                        required
+                      />
                     </div>
-                  )}
-                </div>
-                
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleDeleteField(field.id)}
-                    className="text-red-500 hover:text-red-700 text-sm"
-                    aria-label="Delete field"
-                  >
-                    Delete
-                  </button>
-                </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                        Input Type
+                      </label>
+                      <select
+                        name="input_type"
+                        value={editForm.input_type}
+                        onChange={handleEditInputChange}
+                        className="w-full p-2 text-sm border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
+                        required
+                      >
+                        {inputTypeOptions.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                        Default Value
+                      </label>
+                      <input
+                        type="text"
+                        name="default_value"
+                        value={editForm.default_value}
+                        onChange={handleEditInputChange}
+                        className="w-full p-2 text-sm border rounded-md dark:bg-zinc-700 dark:border-zinc-600"
+                        placeholder="Enter default value (optional)"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="is_required"
+                        checked={editForm.is_required}
+                        onChange={handleEditInputChange}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <label className="ml-2 block text-sm text-zinc-700 dark:text-zinc-300">
+                        Required field
+                      </label>
+                    </div>
+                    
+                    {field.task_type_ids && field.task_type_ids.length > 0 && (
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Used in: {field.task_type_ids.map(typeId => {
+                          const taskType = taskTypes.find(t => t.id === typeId);
+                          return taskType?.name;
+                        }).filter(Boolean).join(', ')}
+                      </div>
+                    )}
+                    
+                    <div className="flex space-x-2 pt-2">
+                      <button
+                        onClick={handleSaveEdit}
+                        disabled={isSubmitting || !editForm.name.trim()}
+                        className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {isSubmitting ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={isSubmitting}
+                        className="px-3 py-1.5 bg-zinc-500 text-white text-sm rounded-md hover:bg-zinc-600 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // View mode
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 mr-4">
+                      <div className="flex items-center">
+                        <div className="text-sm font-medium">{field.name}</div>
+                        {field.is_required && (
+                          <span className="ml-2 text-xs px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded">
+                            Required
+                          </span>
+                        )}
+                        <span className="ml-2 text-xs px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded">
+                          {field.input_type}
+                        </span>
+                      </div>
+                      
+                      {field.task_type_ids && field.task_type_ids.length > 0 && (
+                        <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          Used in: {field.task_type_ids.map(typeId => {
+                            const taskType = taskTypes.find(t => t.id === typeId);
+                            return taskType?.name;
+                          }).filter(Boolean).join(', ')}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleStartEdit(field)}
+                        className="text-indigo-500 hover:text-indigo-700 text-sm"
+                        aria-label="Edit field"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteField(field.id)}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                        aria-label="Delete field"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

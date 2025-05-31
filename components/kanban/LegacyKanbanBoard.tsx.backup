@@ -1,12 +1,11 @@
 import React from 'react';
 import Link from 'next/link';
-import { Task, TaskType, ProjectState, ProjectMemberWithUser } from '@/types/database';
+import { Task, TaskType, ProjectState } from '@/types/database';
 
 interface LegacyKanbanBoardProps {
   tasks: Task[];
   taskTypes: TaskType[];
   states: ProjectState[];
-  projectMembers: ProjectMemberWithUser[];
   groupedTasks: Record<string, Task[]>;
   TASK_STATUSES: {
     TODO: string;
@@ -21,14 +20,20 @@ interface LegacyKanbanBoardProps {
 /**
  * LegacyKanbanBoard Component
  * 
- * This component is deprecated and no longer used as the system now relies 
- * entirely on workflow states instead of built-in status fields.
+ * A three-column Kanban board for viewing tasks organized by the legacy status system
+ * (To Do, In Progress, Done). This component is used when a project doesn't have 
+ * workflow states configured.
+ * 
+ * Features:
+ * - Fixed three-column layout with responsive design
+ * - Visual distinction of different task priorities with colored borders
+ * - Drag and drop support between status columns
+ * - Compact but informative task cards with tags for priority, due date, and task type
  */
 const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
   tasks,
   taskTypes,
   states,
-  projectMembers,
   groupedTasks,
   TASK_STATUSES,
   handleToggleTaskStatus,
@@ -60,17 +65,9 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
               const data = JSON.parse(e.dataTransfer.getData('text/plain'));
               const { taskId } = data;
               const taskToMove = tasks.find(t => t.id === taskId);
-              if (taskToMove && taskToMove.status !== TASK_STATUSES.TODO) {
-                // Check if this transition is valid according to workflow rules
-                const validStates = getNextValidStates(taskToMove, true);
-                const todoState = states.find(s => s.name.toLowerCase().includes('todo') || s.name.toLowerCase().includes('backlog'));
-                
-                // Only allow transition if it's valid in the workflow or if no workflow states defined
-                if (!todoState || validStates.some(s => s.id === todoState.id) || validStates.length === states.length) {
-                  handleToggleTaskStatus(taskId, taskToMove.status);
-                } else {
-                  console.warn('Invalid workflow transition attempted');
-                }
+              if (taskToMove) {
+                // Legacy kanban board no longer supports drag and drop functionality
+                console.log('Legacy kanban board does not support task moving');
               }
             } catch (err) {
               console.error('Error in drop handling:', err);
@@ -133,12 +130,6 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                     {task.task_type_id && (
                       <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
-                      </span>
-                    )}
-                    
-                    {task.assignee_id && (
-                      <span className="px-1.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs">
-                        👤 {projectMembers.find(m => m.user_id === task.assignee_id)?.name || 'Unknown'}
                       </span>
                     )}
                   </div>
@@ -246,12 +237,6 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
                       </span>
                     )}
-                    
-                    {task.assignee_id && (
-                      <span className="px-1.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs">
-                        👤 {projectMembers.find(m => m.user_id === task.assignee_id)?.name || 'Unknown'}
-                      </span>
-                    )}
                   </div>
                 </div>
               ))}
@@ -354,12 +339,6 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                     {task.task_type_id && (
                       <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
-                      </span>
-                    )}
-                    
-                    {task.assignee_id && (
-                      <span className="px-1.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs">
-                        👤 {projectMembers.find(m => m.user_id === task.assignee_id)?.name || 'Unknown'}
                       </span>
                     )}
                   </div>

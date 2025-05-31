@@ -16,13 +16,10 @@ interface KanbanViewProps {
   validDropStates: string[];
   draggedTaskId: string | null;
   handleDeleteTask: (taskId: string) => void;
-  handleToggleTaskStatus: (taskId: string, currentStatus: string) => void;
   getNextValidStates: (task: Task, forDragAndDrop?: boolean) => ProjectState[];
-  TASK_STATUSES: {
-    TODO: string;
-    IN_PROGRESS: string;
-    DONE: string;
-  };
+  // Legacy only props (optional to keep compatibility)
+  TASK_STATUSES?: any;
+  handleToggleTaskStatus?: (taskId: string, status: string) => void;
 }
 
 /**
@@ -49,11 +46,11 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   validDropStates,
   draggedTaskId,
   handleDeleteTask,
-  handleToggleTaskStatus,
   getNextValidStates,
-  TASK_STATUSES
+  TASK_STATUSES,
+  handleToggleTaskStatus
 }) => {
-  // Use workflow-based kanban if states are available, otherwise fall back to legacy view
+  // Use workflow-based kanban if states are available
   if (states.length > 0) {
     return (
       <KanbanBoard
@@ -72,6 +69,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
       />
     );
   } else {
+    // No workflow states configured - show legacy kanban
     return (
       <LegacyKanbanBoard
         tasks={tasks}
