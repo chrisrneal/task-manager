@@ -24,9 +24,8 @@ interface KanbanBoardProps {
  * 
  * Features:
  * - Responsive grid layout (1 column on mobile, 2 on medium screens, 3 on large screens)
- * - Visual distinction of different task priorities with colored borders
  * - Drag and drop support with visual feedback
- * - Compact but informative task cards with tags for priority, due date, and task type
+ * - Compact but informative task cards with tags for task type
  */
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
   states,
@@ -80,10 +79,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     key={task.id}
                     className={`border rounded-md p-3 bg-white dark:bg-zinc-800 dark:border-zinc-700 
                       shadow-sm hover:shadow transition-all cursor-move
-                      ${draggedTaskId === task.id ? 'opacity-50 border-indigo-300 dark:border-indigo-600' : ''}
-                      ${task.priority === 'high' ? 'border-l-4 border-l-red-500' : 
-                        task.priority === 'medium' ? 'border-l-4 border-l-yellow-500' : 
-                        'border-l-4 border-l-green-500'}`}
+                      ${draggedTaskId === task.id ? 'opacity-50 border-indigo-300 dark:border-indigo-600' : ''}`}
                     draggable={true}
                     onDragStart={(e) => handleDragStart(e, task.id, state.id, task.task_type_id)}
                     onDragEnd={handleDragEnd}
@@ -113,19 +109,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       
                       {/* Task metadata as tags */}
                       <div className="flex items-center mt-2 text-xs text-zinc-500 flex-wrap gap-1">
-                        <span className={`px-1.5 py-0.5 rounded-full text-xs
-                          ${task.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
-                            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' : 
-                            'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}>
-                          {task.priority}
-                        </span>
-                        
-                        {task.due_date && (
-                          <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 dark:bg-zinc-700 dark:text-zinc-300 rounded-full text-xs">
-                            Due: {new Date(task.due_date).toLocaleDateString()}
-                          </span>
-                        )}
-                        
                         {task.task_type_id && (
                           <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                             {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}

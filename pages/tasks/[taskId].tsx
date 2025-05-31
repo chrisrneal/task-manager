@@ -141,9 +141,6 @@ export default function TaskDetail() {
 					name: updatedTask.name,
 					description: updatedTask.description || null,
 					project_id: updatedTask.project_id,
-					status: updatedTask.status,
-					priority: updatedTask.priority,
-					due_date: updatedTask.due_date || null,
 					task_type_id: updatedTask.task_type_id,
 					state_id: updatedTask.state_id,
 					field_values: updatedTask.field_values
