@@ -1,3 +1,32 @@
+/**
+ * @fileoverview Tasks Collection API Endpoint
+ * 
+ * This API endpoint handles operations on the tasks collection including listing
+ * tasks for a project and creating new tasks with comprehensive validation and
+ * custom field support.
+ * 
+ * Supported Operations:
+ * - GET: List all tasks for a specific project with filtering and custom fields
+ * - POST: Create new tasks with custom field values and validation
+ * 
+ * Key Features:
+ * - Project-scoped task listing with custom field values
+ * - Task creation with custom field validation
+ * - Required field enforcement during creation
+ * - Task type field assignment validation
+ * - Project membership verification
+ * - Comprehensive error handling with trace IDs
+ * 
+ * Security:
+ * - Bearer token authentication required
+ * - Project access validation via RLS
+ * - Field assignment validation for task types
+ * - Custom field value validation
+ * 
+ * @author Task Manager Team
+ * @since 1.0.0
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';

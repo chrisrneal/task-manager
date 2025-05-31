@@ -1,3 +1,32 @@
+/**
+ * @fileoverview Project Custom Fields API Endpoint
+ * 
+ * This API endpoint manages custom field definitions for projects. It provides
+ * secure CRUD operations for field definitions with comprehensive validation,
+ * duplicate prevention, and proper authorization checks.
+ * 
+ * Supported Operations:
+ * - GET: List all custom fields for a project with task type assignments
+ * - POST: Create new custom field with validation and duplicate checking
+ * 
+ * Key Features:
+ * - Field name validation with character restrictions
+ * - Input type validation against supported types
+ * - Duplicate field name prevention within projects
+ * - Project membership validation
+ * - Comprehensive error handling with trace IDs
+ * - Task type assignment tracking for fields
+ * 
+ * Security:
+ * - Bearer token authentication required
+ * - Project access validation via RLS
+ * - Field name sanitization to prevent injection
+ * - Input type whitelist validation
+ * 
+ * @author Task Manager Team
+ * @since 1.0.0
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,15 +36,25 @@ import { isValidFieldInputType, validateFieldName } from '../../../../utils/cust
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+/**
+ * Project Fields API Handler
+ * 
+ * Handles HTTP requests for project custom field management. Supports GET and POST
+ * methods with comprehensive validation, security checks, and error handling.
+ * 
+ * @param {NextApiRequest} req - Next.js API request object
+ * @param {NextApiResponse} res - Next.js API response object
+ * @returns {Promise<void>} Handles response directly, no return value
+ */
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { id: projectId } = req.query;
 
-  // Generate trace ID for request logging
+  // Generate unique trace ID for request logging and debugging
   const traceId = uuidv4();
   console.log(`[${traceId}] ${method} /api/projects/${projectId}/fields - Request received`);
 
-  // Extract user token from request
+  // Extract and validate Bearer token from Authorization header
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
 
@@ -27,6 +66,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     });
   }
 
+  // Validate project ID parameter
   if (!projectId || typeof projectId !== 'string') {
     console.log(`[${traceId}] Error: Invalid project ID`);
     return res.status(400).json({ 
@@ -35,12 +75,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     });
   }
 
-  // Create a Supabase client with the user's token for RLS
+  // Create Supabase client with user token for Row Level Security (RLS)
   const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
     global: { headers: { Authorization: `Bearer ${token}` } }
   });
 
-  // Verify the user session
+  // Verify user session and extract user information
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
     console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
@@ -51,9 +91,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   try {
-    // Handle GET request - List all fields for a project
+    /**
+     * GET /api/projects/[id]/fields
+     * 
+     * Retrieves all custom fields for a project with their task type assignments.
+     * Includes field definitions and which task types each field is assigned to.
+     * Requires project access via RLS.
+     */
     if (method === 'GET') {
-      // First verify user has access to the project
+      // Verify user has access to the project (RLS will enforce permissions)
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('id')
@@ -68,6 +114,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
+      // Fetch all fields for the project with their task type assignments
       const { data: fields, error } = await supabase
         .from('fields')
         .select(`
@@ -87,7 +134,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Transform the data to include task_type_ids array
+      // Transform data to include task_type_ids array for easier UI consumption
       const fieldsWithAssignments = fields.map(field => ({
         ...field,
         task_type_ids: field.task_type_fields?.map((ttf: any) => ttf.task_type_id) || []
@@ -100,10 +147,19 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // Handle POST request - Create a new field
+    /**
+     * POST /api/projects/[id]/fields
+     * 
+     * Creates a new custom field for a project with comprehensive validation:
+     * - Field name validation and sanitization
+     * - Input type validation against supported types
+     * - Duplicate name checking within the project
+     * - Project access verification
+     */
     if (method === 'POST') {
       const { name, input_type, is_required, options, default_value } = req.body;
 
+      // Validate required fields
       if (!name || !input_type) {
         console.log(`[${traceId}] Error: Missing required fields`);
         return res.status(400).json({ 
@@ -112,7 +168,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Validate field name
+      // Validate field name using utility function (length, characters, etc.)
       const nameValidationError = validateFieldName(name);
       if (nameValidationError) {
         console.log(`[${traceId}] Error: Invalid field name - ${nameValidationError}`);
@@ -122,7 +178,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Validate input_type
+      // Validate input type against supported types whitelist
       if (!isValidFieldInputType(input_type)) {
         console.log(`[${traceId}] Error: Invalid input_type - ${input_type}`);
         return res.status(400).json({ 
@@ -131,7 +187,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // First verify user has access to the project
+      // Verify user has access to the project
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('id')
@@ -146,7 +202,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Check for duplicate field names in the project
+      // Check for duplicate field names within the project (case-insensitive)
       const { data: existingFields, error: duplicateError } = await supabase
         .from('fields')
         .select('id, name')
@@ -169,15 +225,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
+      // Create the new field with validated data
       const { data: field, error } = await supabase
         .from('fields')
         .insert([{
           project_id: projectId,
-          name: name.trim(),
+          name: name.trim(), // Sanitize whitespace
           input_type,
           is_required: Boolean(is_required),
           // Note: options and default_value would need additional columns in the DB schema
-          // For now, we'll store them as JSON in a text field if needed
+          // For now, they're documented but not stored (future enhancement)
         }])
         .select()
         .single();
@@ -197,7 +254,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // Method not allowed
+    // Handle unsupported HTTP methods
     console.log(`[${traceId}] Error: Method ${method} not allowed`);
     return res.status(405).json({ 
       error: 'Method not allowed',
