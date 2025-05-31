@@ -9,8 +9,15 @@ import TaskForm from '@/components/TaskForm';
 import { KanbanView } from '@/components/kanban';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import { Project, Task, TaskWithFieldValues, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue } from '@/types/database';
+import { Project, Task, TaskWithFieldValues, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue, ProjectMemberWithUser } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
+
+// Define task statuses if not already from enums (used for default in form)
+const TASK_STATUSES = {
+  TODO: 'todo',
+  IN_PROGRESS: 'in_progress',
+  DONE: 'done'
+};
 
 const ProjectDetail = () => {
   const router = useRouter();
@@ -44,7 +51,6 @@ const ProjectDetail = () => {
   // Handle view transition with animation
   const handleViewChange = (view: 'kanban' | 'list' | 'gantt') => {
     if (view === activeView) return;
-    
     setIsViewTransitioning(true);
     setTimeout(() => {
       setActiveView(view);
@@ -55,10 +61,8 @@ const ProjectDetail = () => {
   // Handle sorting in list view
   const handleSort = (field: string) => {
     if (sortField === field) {
-      // Toggle direction if the same field is clicked
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
-      // Set new field and default to ascending
       setSortField(field);
       setSortDirection('asc');
     }
@@ -70,10 +74,17 @@ const ProjectDetail = () => {
   const [currentTask, setCurrentTask] = useState<TaskWithFieldValues | null>(null);
   const [taskName, setTaskName] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
+  const [taskStatus, setTaskStatus] = useState(TASK_STATUSES.TODO);
+  const [taskPriority, setTaskPriority] = useState('medium');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskAssigneeId, setTaskAssigneeId] = useState<string | null>(null);
   const [taskTypeId, setTaskTypeId] = useState<string | null>(null);
   const [taskStateId, setTaskStateId] = useState<string | null>(null);
   const [validNextStates, setValidNextStates] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Project members state
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberWithUser[]>([]);
 
   // Auth protection
   useEffect(() => {
@@ -90,70 +101,48 @@ const ProjectDetail = () => {
       const traceId = uuidv4();
       console.log(`[${traceId}] Fetching workflow data for project: ${projectId}`);
       
-      // Get the session token
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
+      if (!token) throw new Error('No authentication token available');
       
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
-      // Fetch task types for this project
       const { data: taskTypesData, error: taskTypesError } = await supabase
         .from('task_types')
         .select('*')
         .eq('project_id', projectId);
-
       if (taskTypesError) throw taskTypesError;
-      
       setTaskTypes(taskTypesData || []);
       
-      // Fetch workflows for this project
       const { data: workflowsData, error: workflowsError } = await supabase
         .from('workflows')
         .select('*')
         .eq('project_id', projectId);
-
       if (workflowsError) throw workflowsError;
-      
       setWorkflows(workflowsData || []);
       
-      // Fetch project states
       const { data: statesData, error: statesError } = await supabase
         .from('project_states')
         .select('*')
         .eq('project_id', projectId)
         .order('position');
-
       if (statesError) throw statesError;
-      
       setStates(statesData || []);
       
-      // Fetch workflow steps
       if (workflowsData && workflowsData.length > 0) {
         const workflowIds = workflowsData.map(w => w.id);
-        
         const { data: stepsData, error: stepsError } = await supabase
           .from('workflow_steps')
           .select('*')
           .in('workflow_id', workflowIds)
           .order('step_order');
-          
         if (stepsError) throw stepsError;
-        
         setWorkflowSteps(stepsData || []);
-
-        // Fetch workflow transitions
         const { data: transitionsData, error: transitionsError } = await supabase
           .from('workflow_transitions')
           .select('*')
           .in('workflow_id', workflowIds);
-
         if (transitionsError) throw transitionsError;
-        
         setWorkflowTransitions(transitionsData || []);
       }
-      
       console.log(`[${traceId}] Workflow data fetched successfully`);
     } catch (err: any) {
       console.error('Error fetching workflow data:', err.message);
@@ -165,20 +154,14 @@ const ProjectDetail = () => {
   const getWorkflowStates = (workflowId: string): ProjectState[] => {
     const steps = workflowSteps.filter(step => step.workflow_id === workflowId)
       .sort((a, b) => a.step_order - b.step_order);
-    
-    return steps.map(step => {
-      const state = states.find(s => s.id === step.state_id);
-      return state!;
-    }).filter(Boolean);
+    return steps.map(step => states.find(s => s.id === step.state_id)!).filter(Boolean);
   };
 
   // Get the workflow for a specific task type
   const getTaskTypeWorkflow = (taskTypeId: string | null): Workflow | null => {
     if (!taskTypeId) return null;
-    
     const taskType = taskTypes.find(tt => tt.id === taskTypeId);
     if (!taskType) return null;
-    
     return workflows.find(w => w.id === taskType.workflow_id) || null;
   };
 
@@ -191,68 +174,46 @@ const ProjectDetail = () => {
   // Get the next valid states for a task
   const getNextValidStates = (task: Task, forDragAndDrop: boolean = false): ProjectState[] => {
     if (!task.task_type_id) return states;
-    
     const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
     if (!taskType) return states;
-    
     const workflow = workflows.find(w => w.id === taskType.workflow_id);
     if (!workflow) return states;
-    
-    const workflowStatesMap = getWorkflowStates(workflow.id)
-      .reduce((map, state) => {
-        map[state.id] = state;
-        return map;
-      }, {} as Record<string, ProjectState>);
-    
-    // If task doesn't have a state, first state is valid
+    const workflowStatesMap = getWorkflowStates(workflow.id).reduce((map, state) => {
+      map[state.id] = state;
+      return map;
+    }, {} as Record<string, ProjectState>);
     if (!task.state_id) {
       const firstState = Object.values(workflowStatesMap).length > 0 
         ? [Object.values(workflowStatesMap)[0]] 
         : [];
       return firstState;
     }
-    
-    // For drag and drop, use workflow transitions to determine valid target states
     const validStates: ProjectState[] = [];
-    
-    // Always include the current state
     if (workflowStatesMap[task.state_id]) {
       validStates.push(workflowStatesMap[task.state_id]);
     }
-    
-    // Get all valid transitions for this workflow
     const relevantTransitions = workflowTransitions.filter(t => 
       t.workflow_id === workflow.id && 
       (t.from_state === task.state_id || t.from_state === null)
     );
-    
-    // Add all valid transition target states
     relevantTransitions.forEach(transition => {
       if (workflowStatesMap[transition.to_state] && 
           !validStates.some(s => s.id === transition.to_state)) {
         validStates.push(workflowStatesMap[transition.to_state]);
       }
     });
-    
     return validStates;
   };
 
   // Fetch tasks for the project
   const fetchTasks = React.useCallback(async () => {
     if (!user || !projectId) return;
-
     try {
       const traceId = uuidv4();
       console.log(`[${traceId}] Fetching tasks for project: ${projectId}`);
-      
-      // Get the session token
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
+      if (!token) throw new Error('No authentication token available');
       const response = await fetch(`/api/tasks?projectId=${projectId}`, {
         method: 'GET',
         headers: {
@@ -260,11 +221,7 @@ const ProjectDetail = () => {
           'Authorization': 'Bearer ' + token
         }
       });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
       const result = await response.json();
       console.log(`[${traceId}] Fetched ${result.data.length} tasks successfully`);
       setTasks(result.data || []);
@@ -274,26 +231,44 @@ const ProjectDetail = () => {
     }
   }, [user, projectId]);
 
+  // Fetch project members
+  const fetchProjectMembers = React.useCallback(async () => {
+    if (!user || !projectId) return;
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Fetching members for project: ${projectId}`);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('No authentication token available');
+      const response = await fetch(`/api/projects/${projectId}/members`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
+      const result = await response.json();
+      console.log(`[${traceId}] Fetched ${result.data.length} members successfully`);
+      setProjectMembers(result.data || []);
+    } catch (err: any) {
+      console.error('Error fetching project members:', err.message);
+      // Not critical for main functionality
+    }
+  }, [user, projectId]);
+
   // Fetch project details
   useEffect(() => {
     const fetchProject = async () => {
       if (!user || !projectId) return;
-
       setIsLoading(true);
       setError(null);
-      
       try {
         const traceId = uuidv4();
         console.log(`[${traceId}] Fetching project details for: ${projectId}`);
-        
-        // Get the session token
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        
-        if (!token) {
-          throw new Error('No authentication token available');
-        }
-        
+        if (!token) throw new Error('No authentication token available');
         const response = await fetch(`/api/projects/${projectId}`, {
           method: 'GET',
           headers: {
@@ -301,7 +276,6 @@ const ProjectDetail = () => {
             'Authorization': 'Bearer ' + token
           }
         });
-        
         if (!response.ok) {
           if (response.status === 404) {
             setProject(null);
@@ -310,13 +284,11 @@ const ProjectDetail = () => {
           }
           throw new Error(`Error: ${response.status}`);
         }
-        
         const result = await response.json();
         console.log(`[${traceId}] Fetched project successfully`);
         setProject(result.data);
-
-        // Now fetch tasks for this project
         await fetchTasks();
+        await fetchProjectMembers();
       } catch (err: any) {
         console.error('Error fetching project:', err.message);
         if (err.message !== 'Project not found') {
@@ -326,19 +298,14 @@ const ProjectDetail = () => {
         setIsLoading(false);
       }
     };
-
     if (user && projectId) {
       fetchProject();
     }
-  }, [user, projectId, fetchTasks]);
+  }, [user, projectId, fetchTasks, fetchProjectMembers]);
 
   // Subscribe to realtime updates for tasks
   useEffect(() => {
     if (!user || !projectId) return;
-    
-    console.log('Setting up realtime subscription for tasks...');
-    
-    // Subscribe to task changes
     const subscription = supabase
       .channel(`tasks:project_id=eq.${projectId}`)
       .on('postgres_changes', { 
@@ -347,12 +314,8 @@ const ProjectDetail = () => {
         table: 'tasks',
         filter: `project_id=eq.${projectId}`
       }, (payload) => {
-        console.log('Realtime task update:', payload);
-        
-        // Handle different events
         switch (payload.eventType) {
           case 'INSERT':
-            // Only add if it's not already in the list (prevent duplication with optimistic updates)
             if (!tasks.some(t => t.id === payload.new.id)) {
               setTasks(prev => [payload.new as Task, ...prev]);
             }
@@ -368,8 +331,6 @@ const ProjectDetail = () => {
         }
       })
       .subscribe();
-    
-    // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(subscription);
     };
@@ -395,13 +356,11 @@ const ProjectDetail = () => {
   // Update valid next states when task type changes (for create mode)
   useEffect(() => {
     if (taskFormMode === 'create' && taskTypeId) {
-      // For a new task with a selected type, get the first state of the workflow
       const taskType = taskTypes.find(tt => tt.id === taskTypeId);
       if (taskType) {
         const firstState = getFirstWorkflowState(taskType.workflow_id);
         if (firstState) {
           setValidNextStates([firstState.id]);
-          // Auto-select the first state
           setTaskStateId(firstState.id);
         } else {
           setValidNextStates([]);
@@ -416,7 +375,6 @@ const ProjectDetail = () => {
     setCurrentTask(null);
     setTaskTypeId(null);
     setTaskStateId(null);
-    // For new tasks, we'll set valid states later when a task type is selected
     setValidNextStates([]);
     setIsTaskModalOpen(true);
   };
@@ -425,24 +383,21 @@ const ProjectDetail = () => {
   const handleEditTask = async (task: Task) => {
     setTaskFormMode('edit');
     setCurrentTask({...task, field_values: []});
+    setTaskName(task.name);
+    setTaskDescription(task.description || '');
+    setTaskStatus(task.status);
+    setTaskPriority(task.priority);
+    setTaskDueDate(task.due_date ? task.due_date.split('T')[0] : '');
+    setTaskAssigneeId(task.assignee_id);
     setTaskTypeId(task.task_type_id);
     setTaskStateId(task.state_id);
-    
-    // Calculate valid next states for this task based on workflow transitions
     const nextStates = getNextValidStates(task);
     setValidNextStates(nextStates.map(state => state.id));
-    
-    // If task has a type, fetch its field values
     if (task.task_type_id) {
       try {
-        // Get the session token
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        
-        if (!token) {
-          throw new Error('No authentication token available');
-        }
-        
+        if (!token) throw new Error('No authentication token available');
         const response = await fetch(`/api/tasks/${task.id}/field-values`, {
           method: 'GET',
           headers: {
@@ -450,35 +405,22 @@ const ProjectDetail = () => {
             'Authorization': 'Bearer ' + token
           }
         });
-        
-        if (!response.ok) {
-          throw new Error(`Error fetching field values: ${response.status}`);
-        }
-        
+        if (!response.ok) throw new Error(`Error fetching field values: ${response.status}`);
         const result = await response.json();
-        
-        // Update the current task with the field values
         setCurrentTask({
           ...task,
           field_values: result.data || []
         });
-
-        // Ensure task type and state are set correctly for the task form
-        console.log('Editing task with type:', task.task_type_id, 'and state:', task.state_id);
       } catch (err: any) {
         console.error('Error fetching task field values:', err.message);
-        // Continue with the modal even if field values can't be fetched
       }
     }
-    
     setIsTaskModalOpen(true);
   };
 
   // Handle change of task type
   const handleTaskTypeChange = (newTaskTypeId: string) => {
     setTaskTypeId(newTaskTypeId);
-    
-    // When task type changes, reset the state to the first state of the workflow
     const taskType = taskTypes.find(tt => tt.id === newTaskTypeId);
     if (taskType) {
       const firstState = getFirstWorkflowState(taskType.workflow_id);
@@ -491,28 +433,14 @@ const ProjectDetail = () => {
   // Handle deleting a task
   const handleDeleteTask = async (taskId: string) => {
     if (!user || !projectId) return;
-
-    if (!confirm('Are you sure you want to delete this task?')) {
-      return;
-    }
-
+    if (!confirm('Are you sure you want to delete this task?')) return;
     try {
       const traceId = uuidv4();
       console.log(`[${traceId}] Deleting task: ${taskId}`);
-      
-      // Get the session token
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-
-      // Remove optimistically from the UI
-      const taskToDelete = tasks.find(t => t.id === taskId);
+      if (!token) throw new Error('No authentication token available');
       setTasks(prev => prev.filter(t => t.id !== taskId));
-      
-      // Then delete from the database
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'DELETE',
         headers: {
@@ -520,18 +448,11 @@ const ProjectDetail = () => {
           'Authorization': 'Bearer ' + token
         }
       });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
       console.log(`[${traceId}] Task deleted successfully`);
     } catch (err: any) {
-      // Restore the deleted task if there was an error
       setTasks(prev => [...prev, tasks.find(t => t.id === taskId)!].sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      ));
-      
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
       setError('Failed to delete task. Please try again.');
       console.error('Error deleting task:', err.message);
     }
@@ -539,41 +460,27 @@ const ProjectDetail = () => {
 
   // Group tasks by state
   const groupTasksByState = () => {
-    // If no workflow data is available yet, return empty groups
-    if (states.length === 0) {
-      return {};
-    }
-    
-    // Group by state_id
+    if (states.length === 0) return {};
     const grouped: Record<string, Task[]> = {};
-    
-    // Initialize all states with empty arrays
     states.forEach(state => {
       grouped[state.id] = [];
     });
-    
-    // Add tasks to their respective state groups
     tasks.forEach(task => {
       if (task.state_id && grouped[task.state_id]) {
         grouped[task.state_id].push(task);
       } else {
-        // For tasks without a state, add to first state of its workflow
-        // or keep in a separate group for tasks without a workflow
         if (task.task_type_id) {
           const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
           if (taskType) {
             const firstState = getFirstWorkflowState(taskType.workflow_id);
             if (firstState) {
-              if (!grouped[firstState.id]) {
-                grouped[firstState.id] = [];
-              }
+              if (!grouped[firstState.id]) grouped[firstState.id] = [];
               grouped[firstState.id].push(task);
             }
           }
         }
       }
     });
-    
     return grouped;
   };
 
@@ -589,15 +496,11 @@ const ProjectDetail = () => {
       taskTypeId
     }));
     setDraggedTaskId(taskId);
-    
-    // Find the task being dragged
     const task = tasks.find(t => t.id === taskId);
     if (task) {
-      // Get valid next states for this task using workflow transitions
       const nextStates = getNextValidStates(task, true);
       setValidDropStates(nextStates.map(s => s.id));
     }
-    
     e.currentTarget.classList.add('opacity-50');
   };
   
@@ -621,54 +524,35 @@ const ProjectDetail = () => {
   // Handle drop event
   const handleDrop = async (e: React.DragEvent, targetStateId: string) => {
     e.preventDefault();
-    
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       const { taskId, sourceStateId, taskTypeId } = data;
-      
       if (sourceStateId === targetStateId) {
-        // Clear drag state even when no change is needed
         setDraggedTaskId(null);
         setValidDropStates([]);
-        return; // No change needed
+        return;
       }
-      
-      // Find the task being moved
       const taskToMove = tasks.find(t => t.id === taskId);
       if (!taskToMove) {
-        // Clear drag state if task not found
         setDraggedTaskId(null);
         setValidDropStates([]);
         return;
       }
-      
-      // Verify this is a valid transition using workflow transitions
       const validStates = getNextValidStates(taskToMove, true);
       if (!validStates.some(s => s.id === targetStateId)) {
-        console.warn('Invalid state transition attempted');
-        // Clear drag state on invalid transition
         setDraggedTaskId(null);
         setValidDropStates([]);
         return;
       }
-      
-      // Update optimistically in the UI
       const updatedTask = { 
         ...taskToMove,
         state_id: targetStateId,
         updated_at: new Date().toISOString()
       };
-      
       setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
-      
-      // Then update in the database
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
+      if (!token) throw new Error('No authentication token available');
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
         headers: {
@@ -682,23 +566,12 @@ const ProjectDetail = () => {
           state_id: targetStateId
         })
       });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      
-      console.log(`Task ${taskId} moved from state ${sourceStateId} to ${targetStateId}`);
-      
-      // Clear drag state after successful drop
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
       setDraggedTaskId(null);
       setValidDropStates([]);
-      
     } catch (err: any) {
-      console.error('Error moving task:', err.message);
       setError('Failed to move task. Please try again.');
-      // Revert the optimistic update
       fetchTasks();
-      // Clear drag state in case of error
       setDraggedTaskId(null);
       setValidDropStates([]);
     }
@@ -709,44 +582,33 @@ const ProjectDetail = () => {
 
   // Get sorted and filtered tasks for list view
   const getSortedFilteredTasks = () => {
-    // Apply text filter
     let filteredTasks = tasks;
-    
     if (filterText.trim()) {
       filteredTasks = filteredTasks.filter(task => 
         task.name.toLowerCase().includes(filterText.toLowerCase()) || 
         (task.description && task.description.toLowerCase().includes(filterText.toLowerCase()))
       );
     }
-    
-    // Apply status filter
     if (statusFilter) {
       filteredTasks = filteredTasks.filter(task => {
         if (task.state_id) {
           const state = states.find(s => s.id === task.state_id);
           return state && state.id === statusFilter;
         }
-        return false; // Tasks without state_id are not shown in filtered results
+        return false;
       });
     }
-    
-    // Apply type filter
     if (typeFilter) {
       filteredTasks = filteredTasks.filter(task => task.task_type_id === typeFilter);
     }
-    
-    // Sort filtered tasks
     return [...filteredTasks].sort((a, b) => {
       let valueA, valueB;
-      
-      // Extract the values based on the sort field
       switch (sortField) {
         case 'name':
           valueA = a.name.toLowerCase();
           valueB = b.name.toLowerCase();
           break;
         case 'status':
-          // Use the state name if available
           valueA = a.state_id 
             ? (states.find(s => s.id === a.state_id)?.name || '').toLowerCase() 
             : '';
@@ -755,7 +617,6 @@ const ProjectDetail = () => {
             : '';
           break;
         case 'type':
-          // Get task type names
           valueA = a.task_type_id 
             ? (taskTypes.find(tt => tt.id === a.task_type_id)?.name || '').toLowerCase() 
             : '';
@@ -763,21 +624,32 @@ const ProjectDetail = () => {
             ? (taskTypes.find(tt => tt.id === b.task_type_id)?.name || '').toLowerCase() 
             : '';
           break;
+        case 'assignee':
+          valueA = a.assignee_id 
+            ? (projectMembers.find(m => m.user_id === a.assignee_id)?.name || '').toLowerCase() 
+            : '';
+          valueB = b.assignee_id 
+            ? (projectMembers.find(m => m.user_id === b.assignee_id)?.name || '').toLowerCase() 
+            : '';
+          break;
+        case 'priority':
+          valueA = a.priority || '';
+          valueB = b.priority || '';
+          break;
+        case 'due_date':
+          valueA = a.due_date || '';
+          valueB = b.due_date || '';
+          break;
         default:
           valueA = a.name.toLowerCase();
           valueB = b.name.toLowerCase();
       }
-      
-      // Sort based on direction - all string comparison now
       const result = String(valueA).localeCompare(String(valueB));
-      
       return sortDirection === 'asc' ? result : -result;
     });
   };
 
-  // Loading and not found states
   if (loading || !user) return null;
-  
   if (isLoading) {
     return (
       <Page title="Project Details">
@@ -898,6 +770,7 @@ const ProjectDetail = () => {
                 states={states}
                 tasks={tasks}
                 taskTypes={taskTypes}
+                projectMembers={projectMembers}
                 groupedTasks={groupedTasks}
                 handleDragStart={handleDragStart}
                 handleDragEnd={handleDragEnd}
@@ -977,7 +850,6 @@ const ProjectDetail = () => {
                       </select>
                     </div>
 
-                    {/* Reset filters button */}
                     {(filterText || statusFilter || typeFilter) && (
                       <button
                         onClick={() => {
@@ -1030,6 +902,51 @@ const ProjectDetail = () => {
                         </th>
                         <th 
                           scope="col" 
+                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('priority')}
+                          aria-sort={sortField === 'priority' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Priority</span>
+                            {sortField === 'priority' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          scope="col" 
+                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('assignee')}
+                          aria-sort={sortField === 'assignee' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Assignee</span>
+                            {sortField === 'assignee' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          scope="col" 
+                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('due_date')}
+                          aria-sort={sortField === 'due_date' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Due Date</span>
+                            {sortField === 'due_date' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          scope="col" 
                           className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
                           onClick={() => handleSort('type')}
                           aria-sort={sortField === 'type' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
@@ -1051,7 +968,7 @@ const ProjectDetail = () => {
                     <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
                       {getSortedFilteredTasks().length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
+                          <td colSpan={7} className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
                             {filterText || statusFilter || typeFilter ? 
                               'No tasks match your filters' : 
                               'No tasks found'}
@@ -1059,7 +976,6 @@ const ProjectDetail = () => {
                         </tr>
                       ) : (
                         getSortedFilteredTasks().map(task => {
-                          // Get the state name for this task
                           let statusName = '';
                           if (task.state_id) {
                             const state = states.find(s => s.id === task.state_id);
@@ -1067,8 +983,6 @@ const ProjectDetail = () => {
                               statusName = state.name;
                             }
                           }
-                          
-                          // Get the task type
                           let typeName = '';
                           if (task.task_type_id) {
                             const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
@@ -1076,7 +990,6 @@ const ProjectDetail = () => {
                               typeName = taskType.name;
                             }
                           }
-                          
                           return (
                             <tr key={task.id}>
                               <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
@@ -1095,6 +1008,27 @@ const ProjectDetail = () => {
                                 <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-zinc-300">
                                   {statusName}
                                 </span>
+                              </td>
+                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
+                                <span className={`capitalize ${
+                                  task.priority === 'high' 
+                                    ? 'text-red-600 dark:text-red-400' 
+                                    : task.priority === 'medium'
+                                      ? 'text-yellow-600 dark:text-yellow-400'
+                                      : 'text-green-600 dark:text-green-400'
+                                }`}>
+                                  {task.priority}
+                                </span>
+                              </td>
+                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
+                                {(() => {
+                                  if (!task.assignee_id) return '-';
+                                  const assignee = projectMembers.find(m => m.user_id === task.assignee_id);
+                                  return assignee ? assignee.name : 'Unknown';
+                                })()}
+                              </td>
+                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
+                                {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
                               </td>
                               <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
                                 {typeName ? (
@@ -1171,25 +1105,17 @@ const ProjectDetail = () => {
                 workflowStates={workflowStates}
                 validNextStates={validNextStates}
                 allowEditing={true}
+                projectMembers={projectMembers}
                 onSubmit={async (task) => {
                   try {
-                    // Start submission
                     setIsSubmitting(true);
                     setError(null);
-                    
                     const traceId = uuidv4();
                     const isEditing = taskFormMode === 'edit' && currentTask;
                     console.log(`[${traceId}] ${isEditing ? 'Updating' : 'Creating'} task: ${task.name}`);
-                    
-                    // Get the session token
                     const { data: sessionData } = await supabase.auth.getSession();
                     const token = sessionData.session?.access_token;
-                    
-                    if (!token) {
-                      throw new Error('No authentication token available');
-                    }
-  
-                    // First add optimistically to the UI
+                    if (!token) throw new Error('No authentication token available');
                     const tempId = `temp-${Date.now()}`;
                     const optimisticTask: Task = {
                       id: isEditing ? currentTask!.id : tempId,
@@ -1197,24 +1123,22 @@ const ProjectDetail = () => {
                       description: task.description || null,
                       project_id: projectId as string,
                       owner_id: user.id,
+                      assignee_id: task.assignee_id,
+                      status: task.status,
+                      priority: task.priority,
+                      due_date: task.due_date || null,
                       created_at: isEditing ? currentTask!.created_at : new Date().toISOString(),
                       updated_at: new Date().toISOString(),
-                      task_type_id: taskTypeId,
-                      state_id: taskStateId
+                      task_type_id: task.task_type_id,
+                      state_id: task.state_id
                     };
-                    
                     if (isEditing) {
-                      // Replace the existing task in the list
                       setTasks(prev => prev.map(t => t.id === currentTask!.id ? optimisticTask : t));
                     } else {
-                      // Add the new task to the list
                       setTasks(prev => [optimisticTask, ...prev]);
                     }
-                    
-                    // Then save to the database via API
                     const endpoint = isEditing ? `/api/tasks/${currentTask!.id}` : '/api/tasks';
                     const method = isEditing ? 'PUT' : 'POST';
-                    
                     const response = await fetch(endpoint, {
                       method,
                       headers: {
@@ -1225,25 +1149,21 @@ const ProjectDetail = () => {
                         name: task.name,
                         description: task.description || null,
                         project_id: projectId,
+                        assignee_id: task.assignee_id,
+                        status: task.status,
+                        priority: task.priority,
+                        due_date: task.due_date || null,
                         task_type_id: task.task_type_id,
                         state_id: task.state_id,
                         field_values: task.field_values
                       })
                     });
-                    
-                    if (!response.ok) {
-                      throw new Error(`Error: ${response.status}`);
-                    }
-                    
+                    if (!response.ok) throw new Error(`Error: ${response.status}`);
                     const result = await response.json();
                     console.log(`[${traceId}] Task ${isEditing ? 'updated' : 'created'} successfully: ${result.data.id}`);
-                    
                     if (!isEditing) {
-                      // Replace the temporary item with the real one
                       setTasks(prev => prev.map(t => t.id === tempId ? result.data : t));
                     }
-                    
-                    // Close the modal and reset form
                     setIsTaskModalOpen(false);
                     setTaskName('');
                     setTaskDescription('');
@@ -1251,13 +1171,11 @@ const ProjectDetail = () => {
                     setTaskStateId(null);
                     setCurrentTask(null);
                   } catch (err: any) {
-                    // Revert the optimistic update
                     if (taskFormMode === 'edit' && currentTask) {
                       setTasks(prev => prev.map(t => t.id === currentTask.id ? currentTask : t));
                     } else {
                       setTasks(prev => prev.filter(t => !t.id.toString().startsWith('temp-')));
                     }
-                    
                     setError('Failed to save task. Please try again.');
                     console.error('Error saving task:', err.message);
                   } finally {

@@ -91,7 +91,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle PUT request - Update a task
     if (method === 'PUT') {
-      const { name, description, task_type_id, state_id, field_values } = req.body;
+      const { name, description, status, priority, due_date, task_type_id, state_id, field_values, assignee_id } = req.body;
       
       if (!name) {
         console.log(`[${traceId}] Error: Missing required field 'name'`);
@@ -118,6 +118,24 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           });
         }
         throw findError;
+      }
+
+      // Validate assignee_id if provided
+      if (assignee_id !== undefined && assignee_id !== null) {
+        const { data: assigneeMember, error: assigneeError } = await supabase
+          .from('project_members')
+          .select('user_id, role, is_dummy, dummy_name')
+          .eq('project_id', existingTask.project_id)
+          .eq('user_id', assignee_id)
+          .single();
+
+        if (assigneeError || !assigneeMember) {
+          console.log(`[${traceId}] Error: Assignee not found in project - ${assignee_id}`);
+          return res.status(400).json({ 
+            error: 'Assignee must be a member of the project',
+            traceId
+          });
+        }
       }
 
       // Validate custom fields if provided
@@ -181,6 +199,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .update({ 
           name, 
           description: description || null,
+          assignee_id: assignee_id !== undefined ? assignee_id : existingTask.assignee_id,
+          status: status || existingTask.status,
+          priority: priority || existingTask.priority,
+          due_date: due_date || existingTask.due_date,
           task_type_id: finalTaskTypeId,
           state_id: state_id !== undefined ? state_id : existingTask.state_id,
           updated_at: new Date().toISOString()

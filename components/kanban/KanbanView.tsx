@@ -1,11 +1,13 @@
 import React from 'react';
 import KanbanBoard from './KanbanBoard';
-import { ProjectState, Task, TaskType } from '@/types/database';
+import LegacyKanbanBoard from './LegacyKanbanBoard';
+import { ProjectState, Task, TaskType, ProjectMemberWithUser } from '@/types/database';
 
 interface KanbanViewProps {
   states: ProjectState[];
   tasks: Task[];
   taskTypes: TaskType[];
+  projectMembers: ProjectMemberWithUser[];
   groupedTasks: Record<string, Task[]>;
   handleDragStart: (e: React.DragEvent, taskId: string, stateId: string, taskTypeId: string | null) => void;
   handleDragEnd: (e: React.DragEvent) => void;
@@ -15,6 +17,9 @@ interface KanbanViewProps {
   draggedTaskId: string | null;
   handleDeleteTask: (taskId: string) => void;
   getNextValidStates: (task: Task, forDragAndDrop?: boolean) => ProjectState[];
+  // Legacy only props (optional to keep compatibility)
+  TASK_STATUSES?: any;
+  handleToggleTaskStatus?: (taskId: string, status: string) => void;
 }
 
 /**
@@ -32,6 +37,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   states,
   tasks,
   taskTypes,
+  projectMembers,
   groupedTasks,
   handleDragStart,
   handleDragEnd,
@@ -40,7 +46,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   validDropStates,
   draggedTaskId,
   handleDeleteTask,
-  getNextValidStates
+  getNextValidStates,
+  TASK_STATUSES,
+  handleToggleTaskStatus
 }) => {
   // Use workflow-based kanban if states are available
   if (states.length > 0) {
@@ -49,6 +57,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         states={states}
         tasks={tasks}
         taskTypes={taskTypes}
+        projectMembers={projectMembers}
         groupedTasks={groupedTasks}
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
@@ -60,13 +69,19 @@ const KanbanView: React.FC<KanbanViewProps> = ({
       />
     );
   } else {
-    // No workflow states configured - show empty state
+    // No workflow states configured - show legacy kanban
     return (
-      <div className="text-center py-10">
-        <p className="text-zinc-600 dark:text-zinc-400">
-          No workflow states configured. Please set up workflow states in project settings.
-        </p>
-      </div>
+      <LegacyKanbanBoard
+        tasks={tasks}
+        taskTypes={taskTypes}
+        states={states}
+        projectMembers={projectMembers}
+        groupedTasks={groupedTasks}
+        TASK_STATUSES={TASK_STATUSES || { TODO: 'todo', IN_PROGRESS: 'in_progress', DONE: 'done' }}
+        handleToggleTaskStatus={handleToggleTaskStatus || (() => {})}
+        handleDeleteTask={handleDeleteTask}
+        getNextValidStates={getNextValidStates}
+      />
     );
   }
 };
