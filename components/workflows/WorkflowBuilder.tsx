@@ -666,7 +666,7 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
       // Update UI optimistically
       const newTransition: WorkflowTransition = {
         workflow_id: selectedWorkflow,
-        from_state: effectiveFromStateId,
+        from_state: effectiveFromStateId === ANY_STATE_UUID ? null : effectiveFromStateId,
         to_state: toStateId
       };
       
@@ -684,7 +684,7 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
         .from('workflow_transitions')
         .insert([{
           workflow_id: selectedWorkflow,
-          from_state: effectiveFromStateId,
+          from_state: effectiveFromStateId === ANY_STATE_UUID ? null : effectiveFromStateId,
           to_state: toStateId
         }]);
       
@@ -735,9 +735,9 @@ const WorkflowBuilder = ({ projectId, states, workflows, onWorkflowsChange }: Wo
         .eq('workflow_id', selectedWorkflow)
         .eq('to_state', toStateId);
       
-      // If from_state is null, we need to use 'eq' with the placeholder UUID
+      // If from_state is null or ANY_STATE_UUID, query for NULL in database
       if (fromStateId === null || fromStateId === ANY_STATE_UUID) {
-        query.eq('from_state', ANY_STATE_UUID);
+        query.is('from_state', null);
       } else {
         query.eq('from_state', fromStateId);
       }

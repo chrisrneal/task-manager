@@ -63,7 +63,7 @@ export interface WorkflowStep {
 
 export interface WorkflowTransition {
   workflow_id: string;
-  from_state: string | null; // For "any state", use '00000000-0000-0000-0000-000000000000' instead of null due to DB constraints
+  from_state: string | null; // For "any state" transitions, this is stored as NULL in the database
   to_state: string;
 }
 
