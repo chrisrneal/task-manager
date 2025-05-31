@@ -1,59 +1,38 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
+import { 
+  generateTraceId,
+  logRequest,
+  logError,
+  logSuccess,
+  createApiResponse,
+  sendApiResponse,
+  withAuth,
+  handleMethodNotAllowed,
+  handleUnhandledError,
+  validateRequiredParams,
+  checkProjectAccess
+} from '@/utils/apiUtils';
 import { ProjectMemberRole } from '@/types/database';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { v4 as uuidv4 } from 'uuid';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { id: projectId } = req.query;
+  const traceId = generateTraceId();
   
-  // Generate trace ID for request logging
-  const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/projects/${projectId}/members - Request received`);
+  logRequest(traceId, method || 'UNKNOWN', `/api/projects/${projectId}/members`);
 
-  // Extract user token from request
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
-  if (!token) {
-    console.log(`[${traceId}] Error: No authorization token provided`);
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      traceId
-    });
-  }
+  // Authenticate user
+  const authContext = await withAuth(req, res, traceId);
+  if (!authContext) return; // Response already sent by withAuth
 
-  // Create a Supabase client with the user's token for RLS
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `Bearer ${token}` } }
-  });
-
-  // Verify the user session
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
-    return res.status(401).json({ 
-      error: 'Invalid authentication',
-      traceId
-    });
-  }
+  const { user, supabase } = authContext;
 
   try {
     // Check if project exists and user has permission (RLS will handle this)
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('name')
-      .eq('id', projectId)
-      .single();
-    
-    if (projectError) {
-      console.error(`[${traceId}] Error fetching project: ${projectError.message}`);
-      return res.status(404).json({
-        error: 'Project not found or you do not have permission',
-        traceId
-      });
+    const projectAccess = await checkProjectAccess(supabase, projectId as string, user.id, traceId);
+    if (!projectAccess.hasAccess) {
+      return sendApiResponse(res, 404, createApiResponse(traceId, 404, undefined, 'Project not found or you do not have permission'));
     }
 
     // Handle GET request - List members
@@ -65,15 +44,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .order('role', { ascending: true });
       
       if (membersError) {
-        console.error(`[${traceId}] Error fetching members: ${membersError.message}`);
-        return res.status(500).json({
-          error: 'Failed to fetch project members',
-          traceId
-        });
+        logError(traceId, `Error fetching members: ${membersError.message}`);
+        return sendApiResponse(res, 500, createApiResponse(traceId, 500, undefined, 'Failed to fetch project members'));
       }
       
       // Format the response to handle both real users and dummy users
-      const formattedMembers = members.map((member) => {
+      const formattedMembers = members.map((member: any) => {
         // For now, we'll treat all members as potentially dummy users
         // until we add the proper is_dummy and dummy_name columns
         return {
@@ -89,11 +65,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         };
       });
       
-      console.log(`[${traceId}] GET /api/projects/${projectId}/members - Success, returned ${members.length} members`);
-      return res.status(200).json({
-        data: formattedMembers,
-        traceId
-      });
+      logSuccess(traceId, `GET /api/projects/${projectId}/members - Success, returned ${members.length} members`);
+      return sendApiResponse(res, 200, createApiResponse(traceId, 200, formattedMembers));
     }
     
     // Handle POST request - Add a dummy member (not tied to real account)
@@ -103,18 +76,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       console.log(`[${traceId}] POST body:`, req.body);
       
       // Validate input
-      if (!name || !name.trim()) {
-        return res.status(400).json({
-          error: 'Name is required',
-          traceId
-        });
+      const validation = validateRequiredParams({ name: name?.trim() }, traceId);
+      if (validation) {
+        return sendApiResponse(res, 400, createApiResponse(traceId, 400, undefined, 'Name is required'));
       }
       
       if (!role || !['admin', 'member'].includes(role)) {
-        return res.status(400).json({
-          error: 'Valid role is required (admin or member)',
-          traceId
-        });
+        return sendApiResponse(res, 400, createApiResponse(traceId, 400, undefined, 'Valid role is required (admin or member)'));
       }
       
       // Generate a dummy user ID
@@ -313,26 +281,22 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
       
-      console.log(`[${traceId}] DELETE /api/projects/${projectId}/members - Success`);
-      return res.status(200).json({
-        message: selfRemoval ? 'You have left the project' : 'Member removed successfully',
-        traceId
-      });
+      logSuccess(traceId, `DELETE /api/projects/${projectId}/members - Success`);
+      return sendApiResponse(res, 200, createApiResponse(
+        traceId, 
+        200, 
+        undefined, 
+        undefined, 
+        undefined,
+        selfRemoval ? 'You have left the project' : 'Member removed successfully'
+      ));
     }
     
     // Method not allowed
-    return res.status(405).json({
-      error: `Method ${method} not allowed`,
-      traceId
-    });
+    return handleMethodNotAllowed(res, traceId, method || 'UNKNOWN', ['GET', 'POST', 'PUT', 'DELETE']);
 
   } catch (err: any) {
-    console.error(`[${traceId}] Unhandled error:`, err.message);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: err.message,
-      traceId
-    });
+    return handleUnhandledError(res, traceId, err);
   }
 };
 

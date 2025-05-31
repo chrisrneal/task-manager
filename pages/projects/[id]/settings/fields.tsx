@@ -1,11 +1,9 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Page from '@/components/page';
 import Section from '@/components/section';
-import { useAuth } from '@/components/AuthContext';
+import { useProjectAdminAuth } from '@/hooks/useProjectAuth';
 import { supabase } from '@/utils/supabaseClient';
 import { Project, TaskType } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,71 +12,20 @@ import FieldManager from '@/components/fields/FieldManager';
 const FieldSettings = () => {
   const router = useRouter();
   const { id: projectId } = router.query;
-  const { user, loading } = useAuth();
   
-  const [project, setProject] = useState<Project | null>(null);
+  // Use the new auth hook for admin access
+  const { isLoading, isAdmin, project, error: authError } = useProjectAdminAuth(projectId);
+  
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  // Auth protection and admin role check
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (!loading) {
-        if (!user) {
-          router.replace('/login');
-          return;
-        }
-        
-        // Check if user is admin or project owner
-        if (projectId) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const token = sessionData.session?.access_token;
-          
-          if (!token) {
-            router.replace('/projects');
-            return;
-          }
-          
-          try {
-            const { data: projectData } = await supabase
-              .from('projects')
-              .select('*')
-              .eq('id', projectId)
-              .single();
-              
-            if (!projectData) {
-              router.replace('/projects');
-              return;
-            }
-            
-            const userIsOwner = projectData.user_id === user.id;
-            const userIsAdmin = user.app_metadata?.role === 'admin';
-            
-            if (!userIsOwner && !userIsAdmin) {
-              router.replace(`/projects/${projectId}`);
-              return;
-            }
-            
-            setIsAdmin(true);
-            setProject(projectData);
-          } catch (err) {
-            router.replace('/projects');
-          }
-        }
-      }
-    };
-    
-    checkAuth();
-  }, [user, loading, projectId, router]);
 
   // Fetch task types for the project
   useEffect(() => {
     const fetchData = async () => {
-      if (!user || !projectId || !isAdmin) return;
+      if (!isAdmin || !projectId) return;
 
-      setIsLoading(true);
+      setDataLoading(true);
       setError(null);
       
       try {
@@ -107,15 +54,15 @@ const FieldSettings = () => {
         console.error('Error fetching task types:', err.message);
         setError('Failed to load task types');
       } finally {
-        setIsLoading(false);
+        setDataLoading(false);
       }
     };
 
     fetchData();
-  }, [user, projectId, isAdmin]);
+  }, [projectId, isAdmin]);
 
   // Loading state
-  if (loading || isLoading) {
+  if (isLoading || dataLoading) {
     return (
       <Page title="Field Settings">
         <Section>
@@ -127,9 +74,24 @@ const FieldSettings = () => {
     );
   }
 
+  // Error state
+  if (authError || error) {
+    return (
+      <Page title="Field Settings">
+        <Section>
+          <div className="text-center py-10">
+            <p className="text-red-600 dark:text-red-400">
+              {authError || error}
+            </p>
+          </div>
+        </Section>
+      </Page>
+    );
+  }
+
   // Not authorized state
   if (!isAdmin) {
-    return null; // Already redirected in useEffect
+    return null; // Already redirected by useProjectAdminAuth
   }
 
   return (
