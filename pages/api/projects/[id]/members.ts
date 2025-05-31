@@ -85,7 +85,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           email: null, // Will be populated when we have proper user lookup
           name: `User ${member.user_id.slice(-8)}`, // Temporary display name
           avatar_url: null,
-          is_dummy: false // Will be properly set after migration
+          is_dummy: member.is_dummy ?? false // Use actual value or default to false
         };
       });
       
