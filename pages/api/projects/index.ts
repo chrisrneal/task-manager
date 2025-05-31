@@ -27,47 +27,18 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { authenticateRequest, handleApiOperation, sendErrorResponse, validateRequiredParams } from '@/utils/apiMiddleware';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
 
-  // Generate trace ID for request logging
-  const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/projects - Request received`);
+  // Authenticate request and get user context
+  const context = await authenticateRequest(req, res, '/api/projects');
+  if (!context) return; // Authentication failed, response already sent
 
-  // Extract user token from request
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
+  const { user, supabase, traceId } = context;
 
-  if (!token) {
-    console.log(`[${traceId}] Error: No authorization token provided`);
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      traceId
-    });
-  }
-
-  // Create a Supabase client with the user's token for RLS
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `Bearer ${token}` } }
-  });
-
-  // Verify the user session
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
-    return res.status(401).json({ 
-      error: 'Invalid authentication',
-      traceId
-    });
-  }
-
-  try {
+  await handleApiOperation(async () => {
     // Handle GET request - List all projects
     if (method === 'GET') {
       const { data, error } = await supabase
@@ -76,8 +47,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error(`[${traceId}] Error fetching projects: ${error.message}`);
-        return res.status(500).json({ error: error.message, traceId });
+        return sendErrorResponse(res, 500, error.message, traceId);
       }
 
       console.log(`[${traceId}] GET /api/projects - Success, returned ${data.length} projects`);
@@ -91,12 +61,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       console.log(`[${traceId}] POST body:`, req.body);
       console.log(`[${traceId}] Auth user id:`, user.id);
 
-      if (!name) {
-        console.log(`[${traceId}] Error: Missing required field 'name'`);
-        return res.status(400).json({ 
-          error: 'Project name is required',
-          traceId
-        });
+      if (!validateRequiredParams({ name }, res, traceId)) {
+        return;
       }
 
       const insertPayload = {
@@ -116,7 +82,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       if (error) {
         console.error(`[${traceId}] Error inserting project:`, error);
-        return res.status(500).json({ error: error.message, details: error.details, traceId });
+        return sendErrorResponse(res, 500, error.message, traceId, error.details);
       }
 
       console.log(`[${traceId}] POST /api/projects - Success, created project: ${data.id}`);
@@ -126,18 +92,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Handle unsupported methods
     console.log(`[${traceId}] Error: Method ${method} not allowed`);
     res.setHeader('Allow', ['GET', 'POST']);
-    return res.status(405).json({ 
-      error: `Method ${method} not allowed`,
-      traceId
-    });
-  } catch (error: any) {
-    console.error(`[${traceId}] Error: ${error.message}`);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message,
-      traceId
-    });
-  }
+    return sendErrorResponse(res, 405, `Method ${method} not allowed`, traceId);
+  }, res, traceId, 'Internal server error');
 };
 
 export default handler;

@@ -1,0 +1,187 @@
+/**
+ * @fileoverview API Middleware Utilities
+ * 
+ * This module provides shared middleware and utility functions for API endpoints
+ * to eliminate code duplication and ensure consistent handling of authentication,
+ * validation, error responses, and logging across all API routes.
+ * 
+ * Key Features:
+ * - Bearer token authentication and validation
+ * - Supabase client creation with user context
+ * - User session verification
+ * - Consistent error response formatting
+ * - Request tracing and logging
+ * 
+ * @author Task Manager Team
+ * @since 1.0.0
+ */
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@supabase/supabase-js';
+import { v4 as uuidv4 } from 'uuid';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+/**
+ * Authenticated request context containing verified user and Supabase client
+ */
+export interface AuthenticatedContext {
+  user: any;
+  supabase: any;
+  traceId: string;
+}
+
+/**
+ * API error response structure
+ */
+export interface ApiErrorResponse {
+  error: string;
+  traceId: string;
+  details?: string;
+}
+
+/**
+ * Extract and validate Bearer token from Authorization header
+ * 
+ * @param authHeader - Authorization header value
+ * @returns Extracted token or undefined if invalid
+ */
+export function extractBearerToken(authHeader: string | undefined): string | undefined {
+  return authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
+}
+
+/**
+ * Create authenticated Supabase client with user token
+ * 
+ * @param token - Bearer token for authentication
+ * @returns Configured Supabase client with RLS
+ */
+export function createAuthenticatedSupabaseClient(token: string) {
+  return createClient(supabaseUrl!, supabaseAnonKey!, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+}
+
+/**
+ * Generate unique trace ID for request tracking
+ * 
+ * @returns UUID for request tracing
+ */
+export function generateTraceId(): string {
+  return uuidv4();
+}
+
+/**
+ * Send standardized error response
+ * 
+ * @param res - Next.js response object
+ * @param status - HTTP status code
+ * @param message - Error message
+ * @param traceId - Request trace ID
+ * @param details - Optional error details
+ */
+export function sendErrorResponse(
+  res: NextApiResponse,
+  status: number,
+  message: string,
+  traceId: string,
+  details?: string
+): void {
+  const response: ApiErrorResponse = {
+    error: message,
+    traceId,
+    ...(details && { details })
+  };
+  
+  console.log(`[${traceId}] Error: ${message}${details ? ` - ${details}` : ''}`);
+  res.status(status).json(response);
+}
+
+/**
+ * Middleware to authenticate requests and create user context
+ * 
+ * This function handles the common authentication flow:
+ * 1. Generate trace ID for request tracking
+ * 2. Extract and validate Bearer token
+ * 3. Create authenticated Supabase client
+ * 4. Verify user session
+ * 5. Return authenticated context or send error response
+ * 
+ * @param req - Next.js request object
+ * @param res - Next.js response object
+ * @param endpoint - Endpoint name for logging
+ * @returns Promise of authenticated context or null if authentication failed
+ */
+export async function authenticateRequest(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  endpoint: string
+): Promise<AuthenticatedContext | null> {
+  const { method } = req;
+  const traceId = generateTraceId();
+  
+  console.log(`[${traceId}] ${method} ${endpoint} - Request received`);
+
+  // Extract and validate Bearer token
+  const token = extractBearerToken(req.headers.authorization);
+  if (!token) {
+    sendErrorResponse(res, 401, 'Authentication required', traceId);
+    return null;
+  }
+
+  // Create authenticated Supabase client
+  const supabase = createAuthenticatedSupabaseClient(token);
+
+  // Verify user session
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    sendErrorResponse(res, 401, 'Invalid authentication', traceId, userError?.message);
+    return null;
+  }
+
+  return { user, supabase, traceId };
+}
+
+/**
+ * Validate required request parameters
+ * 
+ * @param params - Object with parameter values to validate
+ * @param res - Next.js response object
+ * @param traceId - Request trace ID
+ * @returns True if all parameters are valid, false otherwise
+ */
+export function validateRequiredParams(
+  params: Record<string, any>,
+  res: NextApiResponse,
+  traceId: string
+): boolean {
+  for (const [key, value] of Object.entries(params)) {
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
+      sendErrorResponse(res, 400, `${key} is required`, traceId);
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Handle try-catch wrapper for API endpoints
+ * 
+ * @param operation - Async operation to execute
+ * @param res - Next.js response object
+ * @param traceId - Request trace ID
+ * @param errorMessage - Custom error message prefix
+ */
+export async function handleApiOperation(
+  operation: () => Promise<void>,
+  res: NextApiResponse,
+  traceId: string,
+  errorMessage: string = 'Internal server error'
+): Promise<void> {
+  try {
+    await operation();
+  } catch (error: any) {
+    sendErrorResponse(res, 500, errorMessage, traceId, error.message);
+  }
+}
