@@ -1024,6 +1024,15 @@ const ProjectDetail = () => {
             ? (taskTypes.find(tt => tt.id === b.task_type_id)?.name || '').toLowerCase() 
             : '';
           break;
+        case 'assignee':
+          // Get assignee names
+          valueA = a.assignee_id 
+            ? (projectMembers.find(m => m.user_id === a.assignee_id)?.name || '').toLowerCase() 
+            : '';
+          valueB = b.assignee_id 
+            ? (projectMembers.find(m => m.user_id === b.assignee_id)?.name || '').toLowerCase() 
+            : '';
+          break;
         default:
           valueA = a.name.toLowerCase();
           valueB = b.name.toLowerCase();
@@ -1311,6 +1320,21 @@ const ProjectDetail = () => {
                         <th 
                           scope="col" 
                           className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
+                          onClick={() => handleSort('assignee')}
+                          aria-sort={sortField === 'assignee' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                          <div className="flex items-center">
+                            <span>Assignee</span>
+                            {sortField === 'assignee' && (
+                              <span className="ml-1" aria-hidden="true">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          scope="col" 
+                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
                           onClick={() => handleSort('due_date')}
                           aria-sort={sortField === 'due_date' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
                         >
@@ -1346,7 +1370,7 @@ const ProjectDetail = () => {
                     <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
                       {getSortedFilteredTasks().length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
+                          <td colSpan={7} className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-zinc-400">
                             {filterText || statusFilter || typeFilter ? 
                               'No tasks match your filters' : 
                               'No tasks found'}
@@ -1401,6 +1425,13 @@ const ProjectDetail = () => {
                                 }`}>
                                   {task.priority}
                                 </span>
+                              </td>
+                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
+                                {(() => {
+                                  if (!task.assignee_id) return '-';
+                                  const assignee = projectMembers.find(m => m.user_id === task.assignee_id);
+                                  return assignee ? assignee.name : 'Unknown';
+                                })()}
                               </td>
                               <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
                                 {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
