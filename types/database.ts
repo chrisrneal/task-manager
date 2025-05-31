@@ -81,9 +81,6 @@ export interface Task {
   project_id: string;
   owner_id: string;
   assignee_id: string | null;
-  status: string;
-  priority: string;
-  due_date: string | null;
   created_at: string;
   updated_at: string;
   task_type_id: string | null;

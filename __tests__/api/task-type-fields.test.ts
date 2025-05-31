@@ -264,9 +264,7 @@ test.describe('Custom Fields API', () => {
           description: 'Test task for field values testing',
           project_id: testProjectId,
           owner_id: testUserId,
-          task_type_id: testTaskTypeId,
-          status: 'todo',
-          priority: 'medium'
+          task_type_id: testTaskTypeId
         }])
         .select()
         .single();

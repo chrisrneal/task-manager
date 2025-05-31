@@ -38,9 +38,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
   // State for standard task fields
   const [name, setName] = useState(initialValues?.name || '');
   const [description, setDescription] = useState(initialValues?.description || '');
-  const [status, setStatus] = useState(initialValues?.status || 'todo');
-  const [priority, setPriority] = useState(initialValues?.priority || 'medium');
-  const [dueDate, setDueDate] = useState(initialValues?.due_date || '');
   const [assigneeId, setAssigneeId] = useState(initialValues?.assignee_id || null);
   const [selectedTaskTypeId, setSelectedTaskTypeId] = useState(taskTypeId);
   const [selectedStateId, setSelectedStateId] = useState(stateId || null);
@@ -116,9 +113,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
       id: initialValues?.id || '',
       name,
       description,
-      status,
-      priority,
-      due_date: dueDate || null,
       assignee_id: assigneeId,
       task_type_id: selectedTaskTypeId,
       state_id: selectedStateId,
@@ -314,63 +308,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
         onMemberSelect={setAssigneeId}
         disabled={isViewOnly}
       />
-      
-      {/* Status - Show in all modes, but disable in view-only mode */}
-      <div>
-        <label htmlFor="taskStatus" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-          Status
-        </label>
-        <select
-          id="taskStatus"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className={`w-full p-2 border rounded-md ${
-            isViewOnly ? 'bg-gray-100 dark:bg-zinc-800 cursor-not-allowed' : 'dark:bg-zinc-700'
-          } dark:border-zinc-600`}
-          disabled={isViewOnly}
-        >
-          <option value="todo">To Do</option>
-          <option value="in_progress">In Progress</option>
-          <option value="done">Done</option>
-        </select>
-      </div>
-      
-      {/* Priority */}
-      <div>
-        <label htmlFor="taskPriority" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-          Priority
-        </label>
-        <select
-          id="taskPriority"
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          className={`w-full p-2 border rounded-md ${
-            isViewOnly ? 'bg-gray-100 dark:bg-zinc-800 cursor-not-allowed' : 'dark:bg-zinc-700'
-          } dark:border-zinc-600`}
-          disabled={isViewOnly}
-        >
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-      </div>
-      
-      {/* Due Date */}
-      <div>
-        <label htmlFor="taskDueDate" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-          Due Date
-        </label>
-        <input
-          type="date"
-          id="taskDueDate"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          className={`w-full p-2 border rounded-md ${
-            isViewOnly ? 'bg-gray-100 dark:bg-zinc-800 cursor-not-allowed' : 'dark:bg-zinc-700'
-          } dark:border-zinc-600`}
-          disabled={isViewOnly}
-        />
-      </div>
       
       {/* Task Type - Always visible */}
       <div className="mb-4">
