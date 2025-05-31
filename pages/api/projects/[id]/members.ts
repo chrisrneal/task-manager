@@ -126,8 +126,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .insert([{
           project_id: projectId as string,
           user_id: dummyUserId,
-          role: role as ProjectMemberRole
-          // TODO: Add is_dummy: true and dummy_name after migration is applied
+          role: role as ProjectMemberRole,
+          is_dummy: true,
+          dummy_name: name.trim()
         }])
         .select()
         .single();
