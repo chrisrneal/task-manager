@@ -1,3 +1,19 @@
+/**
+ * @fileoverview Task Type Field Assignment API
+ * 
+ * This API endpoint manages the assignment of custom fields to task types, enabling:
+ * - Retrieving all fields assigned to a specific task type
+ * - Bulk assignment/reassignment of fields to task types
+ * - Validation that fields belong to the same project as the task type
+ * - Replacing existing field assignments with new configurations
+ * 
+ * Field assignments determine which custom fields are available for tasks
+ * of a specific type, enabling flexible data capture based on task context.
+ * 
+ * @route GET  /api/task-types/[id]/fields - Get fields assigned to a task type
+ * @route POST /api/task-types/[id]/fields - Assign fields to a task type
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -5,6 +21,19 @@ import { v4 as uuidv4 } from 'uuid';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+/**
+ * Task Type Fields API Handler - Manages field assignments to task types
+ * 
+ * Handles GET and POST operations for assigning custom fields to task types.
+ * Ensures field assignments maintain project scope integrity and provides
+ * bulk assignment capabilities.
+ * 
+ * @param req - Next.js API request object
+ * @param req.query.id - Task Type ID (UUID) for which to manage field assignments
+ * @param req.body.field_ids - Array of field IDs to assign (for POST requests)
+ * @param res - Next.js API response object
+ * @returns JSON response with assigned fields, validation errors, or operation status
+ */
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { id: taskTypeId } = req.query;
@@ -66,6 +95,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
+      // Retrieve all assigned fields with their full definitions
+      // This join query gets field metadata through the task_type_fields relationship
       const { data: fields, error } = await supabase
         .from('task_type_fields')
         .select(`
@@ -90,7 +121,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Transform the data to return just the fields
+      // Transform the data to return just the fields (flatten the join result)
+      // This provides a cleaner API response with field objects rather than nested structure
       const assignedFields = fields.map(item => item.fields).filter(Boolean);
 
       console.log(`[${traceId}] GET /api/task-types/${taskTypeId}/fields - Success: ${assignedFields.length} fields`);
@@ -100,7 +132,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // Handle POST request - Assign fields to a task type
+    // Handle POST request - Assign fields to a task type (bulk operation)
     if (method === 'POST') {
       const { field_ids } = req.body;
 
@@ -128,6 +160,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       }
 
       // Verify all fields belong to the same project as the task type
+      // This ensures project scope integrity - fields can only be assigned
+      // to task types within the same project
       if (field_ids.length > 0) {
         const { data: fields, error: fieldsError } = await supabase
           .from('fields')
@@ -142,6 +176,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           });
         }
 
+        // Check that all fields belong to the task type's project
         const invalidFields = fields.filter(field => field.project_id !== taskType.project_id);
         if (invalidFields.length > 0) {
           console.log(`[${traceId}] Error: Fields do not belong to task type project`);
@@ -151,6 +186,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           });
         }
 
+        // Ensure all provided field IDs were found in the database
         if (fields.length !== field_ids.length) {
           console.log(`[${traceId}] Error: Some fields not found`);
           return res.status(400).json({ 
@@ -160,7 +196,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
       }
 
-      // First, remove all existing assignments for this task type
+      // Remove all existing field assignments for this task type
+      // This allows for complete replacement of field assignments in a single operation
       const { error: deleteError } = await supabase
         .from('task_type_fields')
         .delete()
@@ -174,8 +211,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Then insert the new assignments
+      // Create new field assignments if any fields were provided
       if (field_ids.length > 0) {
+        // Map field IDs to assignment records
         const assignments = field_ids.map(field_id => ({
           task_type_id: taskTypeId,
           field_id

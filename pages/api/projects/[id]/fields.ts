@@ -1,3 +1,19 @@
+/**
+ * @fileoverview Project Fields Management API
+ * 
+ * This API endpoint manages custom field definitions for a project, enabling:
+ * - Creating new custom fields with validation
+ * - Retrieving all fields defined for a project
+ * - Validating field names and input types
+ * - Preventing duplicate field names within a project
+ * 
+ * Custom fields define the structure and validation rules for additional
+ * data that can be captured on tasks within the project.
+ * 
+ * @route GET  /api/projects/[id]/fields - List all fields for a project
+ * @route POST /api/projects/[id]/fields - Create a new field definition
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,6 +23,22 @@ import { isValidFieldInputType, validateFieldName } from '../../../../utils/cust
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+/**
+ * Project Fields API Handler - Manages custom field definitions
+ * 
+ * Handles GET and POST operations for project-level custom field definitions.
+ * Includes comprehensive validation for field names, types, and project access.
+ * 
+ * @param req - Next.js API request object
+ * @param req.query.id - Project ID (UUID) for which to manage fields
+ * @param req.body.name - Field name (for POST requests, required)
+ * @param req.body.input_type - Field input type (text, number, date, etc.)
+ * @param req.body.is_required - Whether the field is required (boolean)
+ * @param req.body.options - Field options for select/radio types (future use)
+ * @param req.body.default_value - Default value for the field (future use)
+ * @param res - Next.js API response object
+ * @returns JSON response with field data, validation errors, or operation status
+ */
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { id: projectId } = req.query;
@@ -51,7 +83,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   try {
-    // Handle GET request - List all fields for a project
+    // Handle GET request - List all custom fields for the project
     if (method === 'GET') {
       // First verify user has access to the project
       const { data: project, error: projectError } = await supabase
@@ -68,6 +100,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
+      // Retrieve all fields for the project with task type assignment information
+      // The join with task_type_fields shows which task types use each field
       const { data: fields, error } = await supabase
         .from('fields')
         .select(`
@@ -87,7 +121,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Transform the data to include task_type_ids array
+      // Transform the data to include task_type_ids array for easier client consumption
+      // This flattens the join result into a more usable format
       const fieldsWithAssignments = fields.map(field => ({
         ...field,
         task_type_ids: field.task_type_fields?.map((ttf: any) => ttf.task_type_id) || []
@@ -100,7 +135,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // Handle POST request - Create a new field
+    // Handle POST request - Create a new custom field for the project
     if (method === 'POST') {
       const { name, input_type, is_required, options, default_value } = req.body;
 
@@ -112,7 +147,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Validate field name
+      // Validate field name using utility function
+      // Checks for length, allowed characters, and basic format
       const nameValidationError = validateFieldName(name);
       if (nameValidationError) {
         console.log(`[${traceId}] Error: Invalid field name - ${nameValidationError}`);
@@ -122,7 +158,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Validate input_type
+      // Validate input type against allowed field types
+      // Ensures only supported field types can be created
       if (!isValidFieldInputType(input_type)) {
         console.log(`[${traceId}] Error: Invalid input_type - ${input_type}`);
         return res.status(400).json({ 
@@ -131,7 +168,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // First verify user has access to the project
+      // Verify user has access to the project before creating fields
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('id')
@@ -146,12 +183,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Check for duplicate field names in the project
+      // Check for duplicate field names within the project
+      // Field names must be unique within each project to avoid confusion
       const { data: existingFields, error: duplicateError } = await supabase
         .from('fields')
         .select('id, name')
         .eq('project_id', projectId)
-        .ilike('name', name.trim());
+        .ilike('name', name.trim()); // Case-insensitive comparison
 
       if (duplicateError) {
         console.error(`[${traceId}] Error checking for duplicate fields: ${duplicateError.message}`);
@@ -169,6 +207,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
+      // Create the new field in the database
       const { data: field, error } = await supabase
         .from('fields')
         .insert([{
@@ -177,7 +216,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           input_type,
           is_required: Boolean(is_required),
           // Note: options and default_value would need additional columns in the DB schema
-          // For now, we'll store them as JSON in a text field if needed
+          // For now, these are placeholders for future enhancement
         }])
         .select()
         .single();

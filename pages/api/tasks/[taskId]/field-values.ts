@@ -1,3 +1,21 @@
+/**
+ * @fileoverview Task Field Values Management API
+ * 
+ * This API endpoint manages custom field values for individual tasks, enabling:
+ * - Retrieving all field values for a task with field definitions
+ * - Batch creation/update of field values with comprehensive validation
+ * - Enforcing required field constraints and type validation
+ * - Ensuring field assignments are valid for the task's type
+ * - Bulk deletion of all field values for a task
+ * 
+ * Field values store the actual data entered for custom fields on tasks,
+ * linking tasks to their custom field data with proper validation.
+ * 
+ * @route GET    /api/tasks/[taskId]/field-values - Get all field values for a task
+ * @route POST   /api/tasks/[taskId]/field-values - Create/update field values (batch)
+ * @route DELETE /api/tasks/[taskId]/field-values - Delete all field values for a task
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,6 +25,21 @@ import { validateFieldValues } from '../../../../utils/customFieldUtils';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+/**
+ * Task Field Values API Handler - Manages custom field values for tasks
+ * 
+ * Handles GET, POST, and DELETE operations for task field values with comprehensive
+ * validation using the custom fields utility functions. Ensures field values
+ * comply with field definitions and task type assignments.
+ * 
+ * @param req - Next.js API request object
+ * @param req.query.taskId - UUID of the task for which to manage field values
+ * @param req.body.field_values - Array of field value objects (for POST requests)
+ * @param req.body.field_values[].field_id - UUID of the field
+ * @param req.body.field_values[].value - Value to store for the field
+ * @param res - Next.js API response object
+ * @returns JSON response with field values, validation errors, or operation status
+ */
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { taskId } = req.query;
@@ -109,7 +142,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Validate each field value
+      // Validate each field value object structure
       for (const fieldValue of field_values) {
         if (!fieldValue.field_id) {
           console.log(`[${traceId}] Error: field_id is required for all field values`);
@@ -120,7 +153,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
       }
 
-      // Use utility function to validate field values
+      // Use comprehensive validation utility function
+      // This validates field types, required constraints, project scope, and task type assignments
       try {
         const validationResult = await validateFieldValues(
           supabase,
@@ -130,6 +164,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         );
 
         if (!validationResult.isValid) {
+          // Format validation errors for client consumption
           const errorMessages = validationResult.errors.map((e: any) => 
             `${e.field_name}: ${e.error}`
           ).join('; ');
@@ -149,13 +184,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Use upsert to create or update field values
+      // Prepare field values for database upsert operation
+      // Normalize empty strings to null for consistent database representation
       const fieldValuesToUpsert = field_values.map(fv => ({
         task_id: taskId,
         field_id: fv.field_id,
         value: fv.value || null
       }));
 
+      // Use upsert to create or update field values atomically
+      // The unique constraint (task_id, field_id) ensures one value per field per task
       const { data: upsertedValues, error: upsertError } = await supabase
         .from('task_field_values')
         .upsert(fieldValuesToUpsert, {
