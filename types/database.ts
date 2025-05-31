@@ -18,6 +18,14 @@ export interface ProjectMember {
   role: ProjectMemberRole;
   created_at: string;
   updated_at: string;
+  is_dummy?: boolean;
+  dummy_name?: string | null;
+}
+
+export interface ProjectMemberWithUser extends ProjectMember {
+  name: string;
+  email: string | null;
+  avatar_url: string | null;
 }
 
 export type ProjectInviteStatus = 'pending' | 'accepted' | 'declined';
@@ -72,6 +80,7 @@ export interface Task {
   description: string | null;
   project_id: string;
   owner_id: string;
+  assignee_id: string | null;
   status: string;
   priority: string;
   due_date: string | null;
@@ -126,6 +135,10 @@ export interface FieldWithAssignments extends Field {
 
 export interface TaskWithFieldValues extends Task {
   field_values: TaskFieldValue[];
+}
+
+export interface TaskWithAssignee extends Task {
+  assignee?: ProjectMemberWithUser | null;
 }
 
 export interface Database {

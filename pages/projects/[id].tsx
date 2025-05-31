@@ -9,7 +9,7 @@ import TaskForm from '@/components/TaskForm';
 import { KanbanView } from '@/components/kanban';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import { Project, Task, TaskWithFieldValues, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue } from '@/types/database';
+import { Project, Task, TaskWithFieldValues, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue, ProjectMemberWithUser } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 
 // Task statuses for organization (legacy, kept for fallback)
@@ -80,10 +80,14 @@ const ProjectDetail = () => {
   const [taskStatus, setTaskStatus] = useState(TASK_STATUSES.TODO);
   const [taskPriority, setTaskPriority] = useState('medium');
   const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskAssigneeId, setTaskAssigneeId] = useState<string | null>(null);
   const [taskTypeId, setTaskTypeId] = useState<string | null>(null);
   const [taskStateId, setTaskStateId] = useState<string | null>(null);
   const [validNextStates, setValidNextStates] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Project members state
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberWithUser[]>([]);
 
   // Auth protection
   useEffect(() => {
@@ -284,6 +288,43 @@ const ProjectDetail = () => {
     }
   }, [user, projectId]);
 
+  // Fetch project members
+  const fetchProjectMembers = React.useCallback(async () => {
+    if (!user || !projectId) return;
+
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Fetching members for project: ${projectId}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      const response = await fetch(`/api/projects/${projectId}/members`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log(`[${traceId}] Fetched ${result.data.length} members successfully`);
+      setProjectMembers(result.data || []);
+    } catch (err: any) {
+      console.error('Error fetching project members:', err.message);
+      // Don't set error for members as it's not critical for main functionality
+    }
+  }, [user, projectId]);
+
   // Fetch project details
   useEffect(() => {
     const fetchProject = async () => {
@@ -327,6 +368,9 @@ const ProjectDetail = () => {
 
         // Now fetch tasks for this project
         await fetchTasks();
+        
+        // Also fetch project members
+        await fetchProjectMembers();
       } catch (err: any) {
         console.error('Error fetching project:', err.message);
         if (err.message !== 'Project not found') {
@@ -340,7 +384,7 @@ const ProjectDetail = () => {
     if (user && projectId) {
       fetchProject();
     }
-  }, [user, projectId, fetchTasks]);
+  }, [user, projectId, fetchTasks, fetchProjectMembers]);
 
   // Subscribe to realtime updates for tasks
   useEffect(() => {
@@ -435,6 +479,14 @@ const ProjectDetail = () => {
   const handleEditTask = async (task: Task) => {
     setTaskFormMode('edit');
     setCurrentTask({...task, field_values: []});
+    
+    // Populate form fields
+    setTaskName(task.name);
+    setTaskDescription(task.description || '');
+    setTaskStatus(task.status);
+    setTaskPriority(task.priority);
+    setTaskDueDate(task.due_date ? task.due_date.split('T')[0] : '');
+    setTaskAssigneeId(task.assignee_id);
     setTaskTypeId(task.task_type_id);
     setTaskStateId(task.state_id);
     
@@ -532,6 +584,7 @@ const ProjectDetail = () => {
         description: taskDescription || null,
         project_id: projectId as string,
         owner_id: user.id,
+        assignee_id: taskAssigneeId,
         status: taskStatus,
         priority: taskPriority,
         due_date: taskDueDate || null,
@@ -563,6 +616,7 @@ const ProjectDetail = () => {
           name: taskName,
           description: taskDescription || null,
           project_id: projectId,
+          assignee_id: taskAssigneeId,
           status: taskStatus,
           priority: taskPriority,
           due_date: taskDueDate || null,
@@ -590,6 +644,7 @@ const ProjectDetail = () => {
       setTaskStatus(TASK_STATUSES.TODO);
       setTaskPriority('medium');
       setTaskDueDate('');
+      setTaskAssigneeId(null);
       setTaskTypeId(null);
       setTaskStateId(null);
       setCurrentTask(null);
@@ -1425,6 +1480,7 @@ const ProjectDetail = () => {
                 workflowStates={workflowStates}
                 validNextStates={validNextStates}
                 allowEditing={true}
+                projectMembers={projectMembers}
                 onSubmit={async (task) => {
                   try {
                     // Start submission
@@ -1451,6 +1507,7 @@ const ProjectDetail = () => {
                       description: task.description || null,
                       project_id: projectId as string,
                       owner_id: user.id,
+                      assignee_id: task.assignee_id,
                       status: task.status,
                       priority: task.priority,
                       due_date: task.due_date || null,
@@ -1482,6 +1539,7 @@ const ProjectDetail = () => {
                         name: task.name,
                         description: task.description || null,
                         project_id: projectId,
+                        assignee_id: task.assignee_id,
                         status: task.status,
                         priority: task.priority,
                         due_date: task.due_date || null,

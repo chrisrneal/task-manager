@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectFields } from '@/hooks/useProjectFields';
 import { supabase } from '@/utils/supabaseClient';
-import { Field, Task, TaskFieldValue, TaskWithFieldValues, TaskType } from '@/types/database';
+import { Field, Task, TaskFieldValue, TaskWithFieldValues, TaskType, ProjectMemberWithUser } from '@/types/database';
 import { validateFieldValueType } from '@/utils/customFieldUtils';
 import FileUpload from '@/components/FileUpload';
+import MemberSelector from '@/components/members/MemberSelector';
 
 interface TaskFormProps {
   mode: 'create' | 'edit' | 'view';
@@ -17,6 +18,7 @@ interface TaskFormProps {
   workflowStates?: { id: string, name: string }[];
   validNextStates?: string[]; // IDs of states that are valid transitions
   allowEditing?: boolean; // Whether to allow editing in view mode
+  projectMembers?: ProjectMemberWithUser[]; // Available project members for assignment
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
@@ -30,7 +32,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
   taskTypes = [],
   workflowStates = [],
   validNextStates = [],
-  allowEditing = false
+  allowEditing = false,
+  projectMembers = []
 }) => {
   // State for standard task fields
   const [name, setName] = useState(initialValues?.name || '');
@@ -38,6 +41,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const [status, setStatus] = useState(initialValues?.status || 'todo');
   const [priority, setPriority] = useState(initialValues?.priority || 'medium');
   const [dueDate, setDueDate] = useState(initialValues?.due_date || '');
+  const [assigneeId, setAssigneeId] = useState(initialValues?.assignee_id || null);
   const [selectedTaskTypeId, setSelectedTaskTypeId] = useState(taskTypeId);
   const [selectedStateId, setSelectedStateId] = useState(stateId || null);
   
@@ -115,6 +119,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
       status,
       priority,
       due_date: dueDate || null,
+      assignee_id: assigneeId,
       task_type_id: selectedTaskTypeId,
       state_id: selectedStateId,
       project_id: projectId || '',
@@ -300,6 +305,15 @@ const TaskForm: React.FC<TaskFormProps> = ({
           disabled={isViewOnly}
         />
       </div>
+      
+      {/* Assignee */}
+      <MemberSelector
+        projectId={projectId || ''}
+        members={projectMembers}
+        selectedMemberId={assigneeId}
+        onMemberSelect={setAssigneeId}
+        disabled={isViewOnly}
+      />
       
       {/* Status - Show in all modes, but disable in view-only mode */}
       <div>

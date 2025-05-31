@@ -89,7 +89,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle POST request - Create a new task
     if (method === 'POST') {
-      const { name, description, project_id, status, priority, due_date, task_type_id, state_id, field_values } = req.body;
+      const { name, description, project_id, status, priority, due_date, task_type_id, state_id, field_values, assignee_id } = req.body;
 
       console.log(`[${traceId}] POST body:`, req.body);
       
@@ -118,6 +118,24 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           });
         }
         throw projectError;
+      }
+
+      // Validate assignee_id if provided
+      if (assignee_id) {
+        const { data: assigneeMember, error: assigneeError } = await supabase
+          .from('project_members')
+          .select('user_id, role, is_dummy, dummy_name')
+          .eq('project_id', project_id)
+          .eq('user_id', assignee_id)
+          .single();
+
+        if (assigneeError || !assigneeMember) {
+          console.log(`[${traceId}] Error: Assignee not found in project - ${assignee_id}`);
+          return res.status(400).json({ 
+            error: 'Assignee must be a member of the project',
+            traceId
+          });
+        }
       }
 
       // Validate custom fields if task type is provided and field values are included
@@ -191,6 +209,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         description: description || null,
         project_id,
         owner_id: user.id,
+        assignee_id: assignee_id || null,
         status: status || 'todo',
         priority: priority || 'medium',
         due_date: due_date || null,
