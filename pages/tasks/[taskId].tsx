@@ -6,7 +6,7 @@ import { Task, TaskFieldValue, TaskWithFieldValues, TaskType } from '@/types/dat
 
 export default function TaskDetail() {
 	const router = useRouter()
-	const { taskId } = router.query
+	const { taskId, edit } = router.query
 	const [task, setTask] = useState<TaskWithFieldValues | null>(null)
 	const [fieldValues, setFieldValues] = useState<TaskFieldValue[]>([])
 	const [loading, setLoading] = useState(true)
@@ -14,7 +14,7 @@ export default function TaskDetail() {
 	const [taskTypes, setTaskTypes] = useState<TaskType[]>([])
 	const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([])
 	const [validNextStates, setValidNextStates] = useState<string[]>([])
-	const [isEditing, setIsEditing] = useState(false)
+	const [isEditing, setIsEditing] = useState(edit === 'true')
 
 	useEffect(() => {
 		if (!taskId) return
