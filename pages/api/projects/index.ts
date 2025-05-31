@@ -1,3 +1,31 @@
+/**
+ * @fileoverview Projects Collection API Endpoint
+ * 
+ * This API endpoint handles CRUD operations for the projects collection,
+ * providing secure project management functionality with proper authentication
+ * and authorization checks.
+ * 
+ * Supported Operations:
+ * - GET: List all projects for the authenticated user
+ * - POST: Create new projects with validation
+ * 
+ * Key Features:
+ * - User-scoped project listing (only user's projects)
+ * - Project creation with validation
+ * - Row Level Security enforcement
+ * - Comprehensive error handling with trace IDs
+ * - Proper authentication and session validation
+ * 
+ * Security:
+ * - Bearer token authentication required
+ * - User session validation via Supabase Auth
+ * - Row Level Security policies enforced
+ * - User ownership validation for all operations
+ * 
+ * @author Task Manager Team
+ * @since 1.0.0
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
