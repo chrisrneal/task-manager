@@ -228,7 +228,24 @@ export async function checkResourceOwnership(
 }
 
 /**
+ * Validation error class to distinguish from system errors
+ */
+export class ValidationError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number = 400,
+    public traceId?: string
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+/**
  * Handle try-catch wrapper for API endpoints
+ * 
+ * This wrapper catches unexpected system errors while allowing validation
+ * errors to be handled by the calling code for proper HTTP status codes.
  * 
  * @param operation - Async operation to execute
  * @param res - Next.js response object
@@ -244,6 +261,12 @@ export async function handleApiOperation(
   try {
     await operation();
   } catch (error: any) {
+    // Re-throw validation errors to be handled by the calling code
+    if (error instanceof ValidationError) {
+      throw error;
+    }
+    
+    // Handle unexpected system errors
     sendErrorResponse(res, 500, errorMessage, traceId, error.message);
   }
 }
