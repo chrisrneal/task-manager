@@ -30,11 +30,14 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { 
+  authenticateRequest, 
+  handleApiOperation, 
+  sendErrorResponse, 
+  validateRequiredParams,
+  checkResourceOwnership 
+} from '@/utils/apiMiddleware';
+import { validateFieldValues } from '@/utils/customFieldUtils';
 
 /**
  * Task API Handler
@@ -50,38 +53,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { taskId } = req.query;
   
-  // Generate unique trace ID for request logging and debugging
-  const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/tasks/${taskId} - Request received`);
+  // Authenticate request and get user context
+  const context = await authenticateRequest(req, res, `/api/tasks/${taskId}`);
+  if (!context) return; // Authentication failed, response already sent
 
-  // Extract and validate Bearer token from Authorization header
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
+  const { user, supabase, traceId } = context;
 
-  if (!token) {
-    console.log(`[${traceId}] Error: No authorization token provided`);
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      traceId
-    });
-  }
-
-  // Create Supabase client with user token for Row Level Security (RLS)
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `Bearer ${token}` } }
-  });
-
-  // Verify user session and extract user information
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
-    return res.status(401).json({ 
-      error: 'Invalid authentication',
-      traceId
-    });
-  }
-
-  try {
+  await handleApiOperation(async () => {
     /**
      * GET /api/tasks/[taskId]
      * 
@@ -154,32 +132,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       const { name, description, status, priority, due_date, task_type_id, state_id, field_values, assignee_id } = req.body;
       
       // Validate required fields
-      if (!name) {
-        console.log(`[${traceId}] Error: Missing required field 'name'`);
-        return res.status(400).json({ 
-          error: 'Name is required',
-          traceId
-        });
+      if (!validateRequiredParams({ name }, res, traceId)) {
+        return;
       }
 
       // Verify task exists and user has permission to modify it
-      const { data: existingTask, error: findError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .eq('owner_id', user.id)
-        .single();
-
-      if (findError) {
-        if (findError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Task not found or access denied - ${taskId}`);
-          return res.status(404).json({ 
-            error: 'Task not found or access denied',
-            traceId
-          });
-        }
-        throw findError;
-      }
+      const existingTask = await checkResourceOwnership(
+        supabase, 'tasks', taskId as string, user.id, res, traceId, 'Task not found or access denied', 'owner_id'
+      );
+      if (!existingTask) return; // Response already sent
 
       // Validate assignee is a member of the task's project (if assignee provided)
       if (assignee_id !== undefined && assignee_id !== null) {
@@ -296,7 +257,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           if (transitionsError) throw transitionsError;
           
           // Validate the requested state transition is allowed
-          const isValidTransition = transitions.some(t => 
+          const isValidTransition = transitions.some((t: any) => 
             // Direct transition from current state to new state
             (t.from_state === existingTask.state_id && t.to_state === state_id) ||
             // Universal transition (from any state) - represented by special UUID
@@ -354,23 +315,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
      */
     if (method === 'DELETE') {
       // Verify task exists and user has permission to delete it
-      const { data: existingTask, error: findError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .eq('owner_id', user.id)
-        .single();
-
-      if (findError) {
-        if (findError.code === 'PGRST116') {
-          console.log(`[${traceId}] Error: Task not found or access denied - ${taskId}`);
-          return res.status(404).json({ 
-            error: 'Task not found or access denied',
-            traceId
-          });
-        }
-        throw findError;
-      }
+      const existingTask = await checkResourceOwnership(
+        supabase, 'tasks', taskId as string, user.id, res, traceId, 'Task not found or access denied', 'owner_id'
+      );
+      if (!existingTask) return; // Response already sent
 
       // Perform deletion (cascades to field values and file references)
       const { error } = await supabase
@@ -387,18 +335,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle unsupported HTTP methods
     console.log(`[${traceId}] Error: Method ${method} not allowed`);
-    return res.status(405).json({ 
-      error: `Method ${method} not allowed`,
-      traceId
-    });
-  } catch (error: any) {
-    console.error(`[${traceId}] Error: ${error.message}`);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message,
-      traceId
-    });
-  }
+    res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
+    return sendErrorResponse(res, 405, `Method ${method} not allowed`, traceId);
+  }, res, traceId, 'Internal server error');
 };
 
 export default handler;

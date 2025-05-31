@@ -197,6 +197,7 @@ export function handleNotFoundError(
  * @param res - Next.js response object
  * @param traceId - Request trace ID
  * @param notFoundMessage - Custom not found message
+ * @param userIdColumn - Column name for user ID (defaults to 'user_id')
  * @returns Resource data if found, null if not found (response already sent)
  */
 export async function checkResourceOwnership(
@@ -206,13 +207,14 @@ export async function checkResourceOwnership(
   userId: string,
   res: NextApiResponse,
   traceId: string,
-  notFoundMessage: string = 'Resource not found or access denied'
+  notFoundMessage: string = 'Resource not found or access denied',
+  userIdColumn: string = 'user_id'
 ): Promise<any | null> {
   const { data, error } = await supabase
     .from(table)
     .select('*')
     .eq('id', id)
-    .eq('user_id', userId)
+    .eq(userIdColumn, userId)
     .single();
 
   if (error) {

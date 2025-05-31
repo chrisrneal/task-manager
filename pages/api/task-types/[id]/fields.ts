@@ -28,11 +28,13 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { 
+  authenticateRequest, 
+  handleApiOperation, 
+  sendErrorResponse, 
+  validateRequiredParams,
+  handleNotFoundError
+} from '@/utils/apiMiddleware';
 
 /**
  * Task Type Fields API Handler
@@ -48,47 +50,18 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { id: taskTypeId } = req.query;
 
-  // Generate unique trace ID for request logging and debugging
-  const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/task-types/${taskTypeId}/fields - Request received`);
+  // Authenticate request and get user context
+  const context = await authenticateRequest(req, res, `/api/task-types/${taskTypeId}/fields`);
+  if (!context) return; // Authentication failed, response already sent
 
-  // Extract and validate Bearer token from Authorization header
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
-
-  if (!token) {
-    console.log(`[${traceId}] Error: No authorization token provided`);
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      traceId
-    });
-  }
+  const { user, supabase, traceId } = context;
 
   // Validate task type ID parameter
-  if (!taskTypeId || typeof taskTypeId !== 'string') {
-    console.log(`[${traceId}] Error: Invalid task type ID`);
-    return res.status(400).json({ 
-      error: 'Task type ID is required',
-      traceId
-    });
+  if (!validateRequiredParams({ 'Task type ID': taskTypeId }, res, traceId)) {
+    return;
   }
 
-  // Create Supabase client with user token for Row Level Security (RLS)
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `Bearer ${token}` } }
-  });
-
-  // Verify user session and extract user information
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
-    return res.status(401).json({ 
-      error: 'Invalid authentication',
-      traceId
-    });
-  }
-
-  try {
+  await handleApiOperation(async () => {
     /**
      * GET /api/task-types/[id]/fields
      * 
@@ -106,10 +79,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       if (taskTypeError || !taskType) {
         console.log(`[${traceId}] Error: Task type not found or access denied - ${taskTypeId}`);
-        return res.status(404).json({ 
-          error: 'Task type not found or access denied',
-          traceId
-        });
+        if (handleNotFoundError(taskTypeError, res, traceId, 'Task type not found or access denied')) {
+          return;
+        }
+        return sendErrorResponse(res, 404, 'Task type not found or access denied', traceId);
       }
 
       // Fetch all field assignments with complete field definitions
@@ -138,7 +111,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       }
 
       // Transform data to return clean field definitions
-      const assignedFields = fields.map(item => item.fields).filter(Boolean);
+      const assignedFields = fields.map((item: any) => item.fields).filter(Boolean);
 
       console.log(`[${traceId}] GET /api/task-types/${taskTypeId}/fields - Success: ${assignedFields.length} fields`);
       return res.status(200).json({ 
@@ -200,7 +173,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
 
         // Check that all fields belong to the task type's project
-        const invalidFields = fields.filter(field => field.project_id !== taskType.project_id);
+        const invalidFields = fields.filter((field: any) => field.project_id !== taskType.project_id);
         if (invalidFields.length > 0) {
           console.log(`[${traceId}] Error: Fields do not belong to task type project`);
           return res.status(400).json({ 
@@ -264,18 +237,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Handle unsupported HTTP methods
     console.log(`[${traceId}] Error: Method ${method} not allowed`);
-    return res.status(405).json({ 
-      error: 'Method not allowed',
-      traceId
-    });
-
-  } catch (err: any) {
-    console.error(`[${traceId}] Unexpected error: ${err.message}`);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      traceId
-    });
-  }
+    // Method not allowed
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+    return sendErrorResponse(res, 405, 'Method not allowed', traceId);
+  }, res, traceId, 'Internal server error');
 };
 
 export default handler;
