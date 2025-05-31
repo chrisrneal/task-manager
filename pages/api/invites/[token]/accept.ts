@@ -1,43 +1,28 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { 
+  generateTraceId,
+  logRequest,
+  logError,
+  logSuccess,
+  createApiResponse,
+  sendApiResponse,
+  withAuth,
+  handleMethodNotAllowed,
+  handleUnhandledError
+} from '@/utils/apiUtils';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { token } = req.query;
+  const traceId = generateTraceId();
   
-  // Generate trace ID for request logging
-  const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/invites/${token}/accept - Request received`);
+  logRequest(traceId, method || 'UNKNOWN', `/api/invites/${token}/accept`);
 
-  // Extract user token from request
-  const authHeader = req.headers.authorization;
-  const authToken = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
-  if (!authToken) {
-    console.log(`[${traceId}] Error: No authorization token provided`);
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      traceId
-    });
-  }
+  // Authenticate user
+  const authContext = await withAuth(req, res, traceId);
+  if (!authContext) return; // Response already sent by withAuth
 
-  // Create a Supabase client with the user's token for RLS
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `Bearer ${authToken}` } }
-  });
-
-  // Verify the user session
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
-    return res.status(401).json({ 
-      error: 'Invalid authentication',
-      traceId
-    });
-  }
+  const { user, supabase } = authContext;
 
   try {
     // Handle POST request - Accept an invitation
@@ -51,31 +36,22 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .single();
         
       if (inviteError) {
-        console.error(`[${traceId}] Error fetching invite: ${inviteError.message}`);
-        return res.status(404).json({
-          error: 'Invitation not found or already processed',
-          traceId
-        });
+        logError(traceId, `Error fetching invite: ${inviteError.message}`);
+        return sendApiResponse(res, 404, createApiResponse(traceId, 404, undefined, 'Invitation not found or already processed'));
       }
       
       // Get user email
       const { data: userData, error: userDataError } = await supabase.auth.getUser();
       if (userDataError) {
-        console.error(`[${traceId}] Error fetching user data: ${userDataError.message}`);
-        return res.status(500).json({
-          error: 'Failed to verify user',
-          traceId
-        });
+        logError(traceId, `Error fetching user data: ${userDataError.message}`);
+        return sendApiResponse(res, 500, createApiResponse(traceId, 500, undefined, 'Failed to verify user'));
       }
       
       // Check if the invitation is for this user
       const userEmail = userData.user?.email?.toLowerCase();
       if (!userEmail || invite.email.toLowerCase() !== userEmail) {
-        console.log(`[${traceId}] Email mismatch: ${invite.email} vs ${userEmail}`);
-        return res.status(403).json({
-          error: 'This invitation is for a different email address',
-          traceId
-        });
+        logError(traceId, `Email mismatch: ${invite.email} vs ${userEmail}`);
+        return sendApiResponse(res, 403, createApiResponse(traceId, 403, undefined, 'This invitation is for a different email address'));
       }
       
       // Check if user is already a member
@@ -152,15 +128,18 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         // We won't return an error here since the member was already added
       }
       
-      console.log(`[${traceId}] POST /api/invites/${token}/accept - Success`);
-      return res.status(200).json({
-        message: `You have successfully joined ${projectData.name}`,
-        data: {
+      logSuccess(traceId, `POST /api/invites/${token}/accept - Success`);
+      return sendApiResponse(res, 200, createApiResponse(
+        traceId, 
+        200, 
+        {
           project_id: invite.project_id,
           project_name: projectData.name
         },
-        traceId
-      });
+        undefined,
+        undefined,
+        `You have successfully joined ${projectData.name}`
+      ));
     }
     
     // Handle GET request - Get invitation details
@@ -246,26 +225,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
       
-      console.log(`[${traceId}] PUT /api/invites/${token}/accept - Success (declined)`);
-      return res.status(200).json({
-        message: 'Invitation declined',
-        traceId
-      });
+      logSuccess(traceId, `PUT /api/invites/${token}/accept - Success (declined)`);
+      return sendApiResponse(res, 200, createApiResponse(traceId, 200, undefined, undefined, undefined, 'Invitation declined'));
     }
     
     // Method not allowed
-    return res.status(405).json({
-      error: `Method ${method} not allowed`,
-      traceId
-    });
+    return handleMethodNotAllowed(res, traceId, method || 'UNKNOWN', ['POST']);
 
   } catch (err: any) {
-    console.error(`[${traceId}] Unhandled error:`, err.message);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: err.message,
-      traceId
-    });
+    return handleUnhandledError(res, traceId, err);
   }
 };
 
