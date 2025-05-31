@@ -1170,6 +1170,7 @@ const ProjectDetail = () => {
                 states={states}
                 tasks={tasks}
                 taskTypes={taskTypes}
+                projectMembers={projectMembers}
                 groupedTasks={groupedTasks}
                 handleDragStart={handleDragStart}
                 handleDragEnd={handleDragEnd}

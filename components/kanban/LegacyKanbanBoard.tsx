@@ -1,11 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
-import { Task, TaskType, ProjectState } from '@/types/database';
+import { Task, TaskType, ProjectState, ProjectMemberWithUser } from '@/types/database';
 
 interface LegacyKanbanBoardProps {
   tasks: Task[];
   taskTypes: TaskType[];
   states: ProjectState[];
+  projectMembers: ProjectMemberWithUser[];
   groupedTasks: Record<string, Task[]>;
   TASK_STATUSES: {
     TODO: string;
@@ -34,6 +35,7 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
   tasks,
   taskTypes,
   states,
+  projectMembers,
   groupedTasks,
   TASK_STATUSES,
   handleToggleTaskStatus,
@@ -138,6 +140,12 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                     {task.task_type_id && (
                       <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
+                      </span>
+                    )}
+                    
+                    {task.assignee_id && (
+                      <span className="px-1.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs">
+                        👤 {projectMembers.find(m => m.user_id === task.assignee_id)?.name || 'Unknown'}
                       </span>
                     )}
                   </div>
@@ -245,6 +253,12 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
                       </span>
                     )}
+                    
+                    {task.assignee_id && (
+                      <span className="px-1.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs">
+                        👤 {projectMembers.find(m => m.user_id === task.assignee_id)?.name || 'Unknown'}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -347,6 +361,12 @@ const LegacyKanbanBoard: React.FC<LegacyKanbanBoardProps> = ({
                     {task.task_type_id && (
                       <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                         {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
+                      </span>
+                    )}
+                    
+                    {task.assignee_id && (
+                      <span className="px-1.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs">
+                        👤 {projectMembers.find(m => m.user_id === task.assignee_id)?.name || 'Unknown'}
                       </span>
                     )}
                   </div>

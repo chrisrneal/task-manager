@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ProjectState, Task, TaskType } from '@/types/database';
+import { ProjectState, Task, TaskType, ProjectMemberWithUser } from '@/types/database';
 
 interface KanbanBoardProps {
   states: ProjectState[];
   tasks: Task[];
   taskTypes: TaskType[];
+  projectMembers: ProjectMemberWithUser[];
   groupedTasks: Record<string, Task[]>;
   handleDragStart: (e: React.DragEvent, taskId: string, stateId: string, taskTypeId: string | null) => void;
   handleDragEnd: (e: React.DragEvent) => void;
@@ -32,6 +33,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   states,
   tasks,
   taskTypes,
+  projectMembers,
   groupedTasks,
   handleDragStart,
   handleDragEnd,
@@ -129,6 +131,12 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         {task.task_type_id && (
                           <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs">
                             {taskTypes.find(tt => tt.id === task.task_type_id)?.name || 'Unknown Type'}
+                          </span>
+                        )}
+                        
+                        {task.assignee_id && (
+                          <span className="px-1.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs">
+                            👤 {projectMembers.find(m => m.user_id === task.assignee_id)?.name || 'Unknown'}
                           </span>
                         )}
                       </div>

@@ -1,12 +1,13 @@
 import React from 'react';
 import KanbanBoard from './KanbanBoard';
 import LegacyKanbanBoard from './LegacyKanbanBoard';
-import { ProjectState, Task, TaskType } from '@/types/database';
+import { ProjectState, Task, TaskType, ProjectMemberWithUser } from '@/types/database';
 
 interface KanbanViewProps {
   states: ProjectState[];
   tasks: Task[];
   taskTypes: TaskType[];
+  projectMembers: ProjectMemberWithUser[];
   groupedTasks: Record<string, Task[]>;
   handleDragStart: (e: React.DragEvent, taskId: string, stateId: string, taskTypeId: string | null) => void;
   handleDragEnd: (e: React.DragEvent) => void;
@@ -39,6 +40,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   states,
   tasks,
   taskTypes,
+  projectMembers,
   groupedTasks,
   handleDragStart,
   handleDragEnd,
@@ -58,6 +60,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         states={states}
         tasks={tasks}
         taskTypes={taskTypes}
+        projectMembers={projectMembers}
         groupedTasks={groupedTasks}
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
@@ -74,6 +77,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         tasks={tasks}
         taskTypes={taskTypes}
         states={states}
+        projectMembers={projectMembers}
         groupedTasks={groupedTasks}
         TASK_STATUSES={TASK_STATUSES}
         handleToggleTaskStatus={handleToggleTaskStatus}
