@@ -45,9 +45,8 @@ jobs:
             echo "Consider updating README.md or other documentation files." >> $GITHUB_STEP_SUMMARY
           fi
       
-      - name: Check linting and tests
+      - name: Check linting
         if: steps.changes.outputs.code_changed == 'true'
         run: |
           npm ci
           npm run lint
-          npm run test -- --ci

@@ -89,7 +89,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle POST request - Create a new task
     if (method === 'POST') {
-      const { name, description, project_id, status, priority, due_date, task_type_id, state_id, field_values } = req.body;
+      const { name, description, project_id, task_type_id, state_id, field_values } = req.body;
 
       console.log(`[${traceId}] POST body:`, req.body);
       
@@ -191,9 +191,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         description: description || null,
         project_id,
         owner_id: user.id,
-        status: status || 'todo',
-        priority: priority || 'medium',
-        due_date: due_date || null,
         task_type_id: task_type_id || null,
         state_id: state_id || null
       };

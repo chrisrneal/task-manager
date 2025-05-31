@@ -61,9 +61,6 @@ erDiagram
         string description
         uuid project_id FK
         uuid owner_id
-        string status
-        string priority
-        timestamp due_date
         timestamp created_at
         timestamp updated_at
         uuid task_type_id FK

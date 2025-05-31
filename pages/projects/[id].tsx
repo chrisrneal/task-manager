@@ -12,13 +12,6 @@ import { supabase } from '@/utils/supabaseClient';
 import { Project, Task, TaskWithFieldValues, ProjectState, TaskType, Workflow, WorkflowStep, WorkflowTransition, TaskFieldValue } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 
-// Task statuses for organization (legacy, kept for fallback)
-const TASK_STATUSES = {
-  TODO: 'todo',
-  IN_PROGRESS: 'in_progress',
-  DONE: 'done'
-};
-
 const ProjectDetail = () => {
   const router = useRouter();
   const { id: projectId } = router.query;
@@ -77,9 +70,6 @@ const ProjectDetail = () => {
   const [currentTask, setCurrentTask] = useState<TaskWithFieldValues | null>(null);
   const [taskName, setTaskName] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
-  const [taskStatus, setTaskStatus] = useState(TASK_STATUSES.TODO);
-  const [taskPriority, setTaskPriority] = useState('medium');
-  const [taskDueDate, setTaskDueDate] = useState('');
   const [taskTypeId, setTaskTypeId] = useState<string | null>(null);
   const [taskStateId, setTaskStateId] = useState<string | null>(null);
   const [validNextStates, setValidNextStates] = useState<string[]>([]);
@@ -498,116 +488,6 @@ const ProjectDetail = () => {
     }
   };
 
-  // Handle form submission for creating/editing a task
-  const handleTaskSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user || !projectId) return;
-    if (!taskName.trim()) {
-      setError('Task name is required');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-    
-    try {
-      const traceId = uuidv4();
-      const isEditing = taskFormMode === 'edit' && currentTask;
-      console.log(`[${traceId}] ${isEditing ? 'Updating' : 'Creating'} task: ${taskName}`);
-      
-      // Get the session token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-
-      // First add optimistically to the UI
-      const tempId = `temp-${Date.now()}`;
-      const optimisticTask: Task = {
-        id: isEditing ? currentTask!.id : tempId,
-        name: taskName,
-        description: taskDescription || null,
-        project_id: projectId as string,
-        owner_id: user.id,
-        status: taskStatus,
-        priority: taskPriority,
-        due_date: taskDueDate || null,
-        created_at: isEditing ? currentTask!.created_at : new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        task_type_id: taskTypeId,
-        state_id: taskStateId
-      };
-      
-      if (isEditing) {
-        // Replace the existing task in the list
-        setTasks(prev => prev.map(t => t.id === currentTask!.id ? optimisticTask : t));
-      } else {
-        // Add the new task to the list
-        setTasks(prev => [optimisticTask, ...prev]);
-      }
-      
-      // Then save to the database via API
-      const endpoint = isEditing ? `/api/tasks/${currentTask!.id}` : '/api/tasks';
-      const method = isEditing ? 'PUT' : 'POST';
-      
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify({
-          name: taskName,
-          description: taskDescription || null,
-          project_id: projectId,
-          status: taskStatus,
-          priority: taskPriority,
-          due_date: taskDueDate || null,
-          task_type_id: taskTypeId,
-          state_id: taskStateId
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log(`[${traceId}] Task ${isEditing ? 'updated' : 'created'} successfully: ${result.data.id}`);
-      
-      if (!isEditing) {
-        // Replace the temporary item with the real one
-        setTasks(prev => prev.map(t => t.id === tempId ? result.data : t));
-      }
-      
-      // Close the modal and reset form
-      setIsTaskModalOpen(false);
-      setTaskName('');
-      setTaskDescription('');
-      setTaskStatus(TASK_STATUSES.TODO);
-      setTaskPriority('medium');
-      setTaskDueDate('');
-      setTaskTypeId(null);
-      setTaskStateId(null);
-      setCurrentTask(null);
-    } catch (err: any) {
-      // Revert the optimistic update
-      if (taskFormMode === 'edit' && currentTask) {
-        setTasks(prev => prev.map(t => t.id === currentTask.id ? currentTask : t));
-      } else {
-        setTasks(prev => prev.filter(t => !t.id.toString().startsWith('temp-')));
-      }
-      
-      setError('Failed to save task. Please try again.');
-      console.error('Error saving task:', err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   // Handle deleting a task
   const handleDeleteTask = async (taskId: string) => {
     if (!user || !projectId) return;
@@ -657,78 +537,11 @@ const ProjectDetail = () => {
     }
   };
 
-  // Handle marking a task as done/undone
-  const handleToggleTaskStatus = async (taskId: string, currentStatus: string) => {
-    if (!user || !projectId) return;
-
-    const newStatus = currentStatus === TASK_STATUSES.DONE ? TASK_STATUSES.TODO : TASK_STATUSES.DONE;
-
-    try {
-      const traceId = uuidv4();
-      console.log(`[${traceId}] Toggling task ${taskId} status from ${currentStatus} to ${newStatus}`);
-      
-      // Get the session token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-
-      // Get the task to update
-      const taskToUpdate = tasks.find(t => t.id === taskId);
-      if (!taskToUpdate) {
-        throw new Error('Task not found');
-      }
-
-      // Update optimistically in the UI
-      const updatedTask = { ...taskToUpdate, status: newStatus, updated_at: new Date().toISOString() };
-      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
-      
-      // Then update in the database
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify({
-          name: taskToUpdate.name,
-          description: taskToUpdate.description,
-          status: newStatus,
-          priority: taskToUpdate.priority,
-          due_date: taskToUpdate.due_date
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      
-      console.log(`[${traceId}] Task status updated successfully`);
-    } catch (err: any) {
-      // Revert the optimistic update if there was an error
-      setTasks(prev => prev.map(t => {
-        if (t.id === taskId) {
-          return { ...t, status: currentStatus };
-        }
-        return t;
-      }));
-      
-      setError('Failed to update task status. Please try again.');
-      console.error('Error updating task status:', err.message);
-    }
-  };
-
   // Group tasks by state
   const groupTasksByState = () => {
-    // If no workflow data is available yet, use legacy status grouping
+    // If no workflow data is available yet, return empty groups
     if (states.length === 0) {
-      return {
-        [TASK_STATUSES.TODO]: tasks.filter(task => task.status === TASK_STATUSES.TODO),
-        [TASK_STATUSES.IN_PROGRESS]: tasks.filter(task => task.status === TASK_STATUSES.IN_PROGRESS),
-        [TASK_STATUSES.DONE]: tasks.filter(task => task.status === TASK_STATUSES.DONE)
-      };
+      return {};
     }
     
     // Group by state_id
@@ -865,9 +678,7 @@ const ProjectDetail = () => {
         body: JSON.stringify({
           name: taskToMove.name,
           description: taskToMove.description,
-          status: taskToMove.status,
-          priority: taskToMove.priority,
-          due_date: taskToMove.due_date,
+          task_type_id: taskToMove.task_type_id,
           state_id: targetStateId
         })
       });
@@ -914,10 +725,8 @@ const ProjectDetail = () => {
         if (task.state_id) {
           const state = states.find(s => s.id === task.state_id);
           return state && state.id === statusFilter;
-        } else {
-          // For tasks without a state_id, match against legacy status
-          return task.status === statusFilter;
         }
+        return false; // Tasks without state_id are not shown in filtered results
       });
     }
     
@@ -937,28 +746,13 @@ const ProjectDetail = () => {
           valueB = b.name.toLowerCase();
           break;
         case 'status':
-          // Use the state name if available, otherwise use the status
+          // Use the state name if available
           valueA = a.state_id 
             ? (states.find(s => s.id === a.state_id)?.name || '').toLowerCase() 
-            : a.status.toLowerCase();
+            : '';
           valueB = b.state_id 
             ? (states.find(s => s.id === b.state_id)?.name || '').toLowerCase() 
-            : b.status.toLowerCase();
-          break;
-        case 'priority':
-          // Convert priority to numeric value for sorting
-          const priorityMap: { [key: string]: number } = {
-            'low': 1,
-            'medium': 2, 
-            'high': 3
-          };
-          valueA = priorityMap[a.priority] || 0;
-          valueB = priorityMap[b.priority] || 0;
-          break;
-        case 'due_date':
-          // Handle null dates
-          valueA = a.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
-          valueB = b.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+            : '';
           break;
         case 'type':
           // Get task type names
@@ -974,10 +768,8 @@ const ProjectDetail = () => {
           valueB = b.name.toLowerCase();
       }
       
-      // Sort based on direction
-      const result = sortField === 'priority' || sortField === 'due_date'
-        ? (valueA as number) - (valueB as number)  // Numeric comparison
-        : String(valueA).localeCompare(String(valueB)); // String comparison
+      // Sort based on direction - all string comparison now
+      const result = String(valueA).localeCompare(String(valueB));
       
       return sortDirection === 'asc' ? result : -result;
     });
@@ -1114,9 +906,7 @@ const ProjectDetail = () => {
                 validDropStates={validDropStates}
                 draggedTaskId={draggedTaskId}
                 handleDeleteTask={handleDeleteTask}
-                handleToggleTaskStatus={handleToggleTaskStatus}
                 getNextValidStates={getNextValidStates}
-                TASK_STATUSES={TASK_STATUSES}
               />
             )}
 
@@ -1240,36 +1030,6 @@ const ProjectDetail = () => {
                         </th>
                         <th 
                           scope="col" 
-                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
-                          onClick={() => handleSort('priority')}
-                          aria-sort={sortField === 'priority' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                        >
-                          <div className="flex items-center">
-                            <span>Priority</span>
-                            {sortField === 'priority' && (
-                              <span className="ml-1" aria-hidden="true">
-                                {sortDirection === 'asc' ? '↑' : '↓'}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          scope="col" 
-                          className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
-                          onClick={() => handleSort('due_date')}
-                          aria-sort={sortField === 'due_date' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                        >
-                          <div className="flex items-center">
-                            <span>Due Date</span>
-                            {sortField === 'due_date' && (
-                              <span className="ml-1" aria-hidden="true">
-                                {sortDirection === 'asc' ? '↑' : '↓'}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          scope="col" 
                           className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
                           onClick={() => handleSort('type')}
                           aria-sort={sortField === 'type' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
@@ -1300,7 +1060,7 @@ const ProjectDetail = () => {
                       ) : (
                         getSortedFilteredTasks().map(task => {
                           // Get the state name for this task
-                          let statusName = task.status;
+                          let statusName = '';
                           if (task.state_id) {
                             const state = states.find(s => s.id === task.state_id);
                             if (state) {
@@ -1335,20 +1095,6 @@ const ProjectDetail = () => {
                                 <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-zinc-300">
                                   {statusName}
                                 </span>
-                              </td>
-                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
-                                <span className={`capitalize ${
-                                  task.priority === 'high' 
-                                    ? 'text-red-600 dark:text-red-400' 
-                                    : task.priority === 'medium'
-                                      ? 'text-yellow-600 dark:text-yellow-400'
-                                      : 'text-green-600 dark:text-green-400'
-                                }`}>
-                                  {task.priority}
-                                </span>
-                              </td>
-                              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
-                                {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
                               </td>
                               <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
                                 {typeName ? (
@@ -1451,9 +1197,6 @@ const ProjectDetail = () => {
                       description: task.description || null,
                       project_id: projectId as string,
                       owner_id: user.id,
-                      status: task.status,
-                      priority: task.priority,
-                      due_date: task.due_date || null,
                       created_at: isEditing ? currentTask!.created_at : new Date().toISOString(),
                       updated_at: new Date().toISOString(),
                       task_type_id: taskTypeId,
@@ -1482,9 +1225,6 @@ const ProjectDetail = () => {
                         name: task.name,
                         description: task.description || null,
                         project_id: projectId,
-                        status: task.status,
-                        priority: task.priority,
-                        due_date: task.due_date || null,
                         task_type_id: task.task_type_id,
                         state_id: task.state_id,
                         field_values: task.field_values
@@ -1507,9 +1247,6 @@ const ProjectDetail = () => {
                     setIsTaskModalOpen(false);
                     setTaskName('');
                     setTaskDescription('');
-                    setTaskStatus(TASK_STATUSES.TODO);
-                    setTaskPriority('medium');
-                    setTaskDueDate('');
                     setTaskTypeId(null);
                     setTaskStateId(null);
                     setCurrentTask(null);

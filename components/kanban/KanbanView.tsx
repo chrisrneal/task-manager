@@ -1,6 +1,5 @@
 import React from 'react';
 import KanbanBoard from './KanbanBoard';
-import LegacyKanbanBoard from './LegacyKanbanBoard';
 import { ProjectState, Task, TaskType } from '@/types/database';
 
 interface KanbanViewProps {
@@ -15,13 +14,7 @@ interface KanbanViewProps {
   validDropStates: string[];
   draggedTaskId: string | null;
   handleDeleteTask: (taskId: string) => void;
-  handleToggleTaskStatus: (taskId: string, currentStatus: string) => void;
   getNextValidStates: (task: Task, forDragAndDrop?: boolean) => ProjectState[];
-  TASK_STATUSES: {
-    TODO: string;
-    IN_PROGRESS: string;
-    DONE: string;
-  };
 }
 
 /**
@@ -47,11 +40,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   validDropStates,
   draggedTaskId,
   handleDeleteTask,
-  handleToggleTaskStatus,
-  getNextValidStates,
-  TASK_STATUSES
+  getNextValidStates
 }) => {
-  // Use workflow-based kanban if states are available, otherwise fall back to legacy view
+  // Use workflow-based kanban if states are available
   if (states.length > 0) {
     return (
       <KanbanBoard
@@ -69,17 +60,13 @@ const KanbanView: React.FC<KanbanViewProps> = ({
       />
     );
   } else {
+    // No workflow states configured - show empty state
     return (
-      <LegacyKanbanBoard
-        tasks={tasks}
-        taskTypes={taskTypes}
-        states={states}
-        groupedTasks={groupedTasks}
-        TASK_STATUSES={TASK_STATUSES}
-        handleToggleTaskStatus={handleToggleTaskStatus}
-        handleDeleteTask={handleDeleteTask}
-        getNextValidStates={getNextValidStates}
-      />
+      <div className="text-center py-10">
+        <p className="text-zinc-600 dark:text-zinc-400">
+          No workflow states configured. Please set up workflow states in project settings.
+        </p>
+      </div>
     );
   }
 };

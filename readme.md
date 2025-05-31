@@ -28,14 +28,32 @@
 - 🔄 Workflow-driven task transitions
 - 📎 Secure file uploads for task attachments
 
+## Task Fields
+
+The task management system uses a flexible custom fields approach for all task metadata:
+
+### Built-in Fields
+- **Name**: Task title (required)
+- **Description**: Detailed task description
+- **Task Type**: Defines the workflow and available custom fields
+- **State**: Current position in the task's workflow
+
+### Custom Fields
+All other task properties (such as Priority, Due Date, Story Points, etc.) are implemented as custom fields. This provides several advantages:
+
+- **Flexibility**: Each project can define exactly the fields needed for their workflow
+- **Consistency**: All task metadata uses the same underlying system
+- **Customization**: Field types, validation, and requirements can be tailored per project
+- **Migration Support**: Existing tasks retain their original Status, Priority, and Due Date values through automatic migration to custom fields
+
+When migrating from earlier versions, the system automatically creates Status, Priority, and Due Date custom fields and preserves all existing task data.
+
 ## Task Management
 
 The application allows users to:
-
 - Create and manage projects
-- Edit project names and descriptions from Project Settings (for project owners and admins)
 - View projects in different formats (Kanban board, List view, or Gantt chart)
-- Add tasks with details like name, description, priority, and due date
+- Add tasks with details like name, description, and custom fields
 - Organize tasks in customizable boards
 - Track task progress through workflows
 - Attach files (images, PDFs) to tasks with secure access control
@@ -61,7 +79,7 @@ Files can be uploaded to tasks using a drag-and-drop interface. Each task can ha
 Projects can be viewed in multiple formats using a tabbed interface:
 
 - **Kanban**: The default board-style view showing tasks organized by workflow states. Tasks can be dragged between states following the defined workflow rules.
-- **List**: A table-style view showing all tasks with sortable columns including name, status, priority, due date, and type. This view makes it easy to scan and sort all tasks in a project.
+- **List**: A table-style view showing all tasks with sortable columns including name, status, and type, along with any custom fields configured for the project. This view makes it easy to scan and sort all tasks in a project.
 - **Gantt**: (Coming Soon) A timeline view for visualizing task schedules and dependencies.
 
 Users can switch between these views using tabs at the top of the project page, with smooth transitions between each view.
