@@ -14,7 +14,14 @@ export default function TaskDetail() {
 	const [taskTypes, setTaskTypes] = useState<TaskType[]>([])
 	const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([])
 	const [validNextStates, setValidNextStates] = useState<string[]>([])
-	const [isEditing, setIsEditing] = useState(edit === 'true')
+	const [isEditing, setIsEditing] = useState(false)
+
+	// Update isEditing when router query becomes available
+	useEffect(() => {
+		if (edit === 'true') {
+			setIsEditing(true)
+		}
+	}, [edit])
 
 	useEffect(() => {
 		if (!taskId) return
