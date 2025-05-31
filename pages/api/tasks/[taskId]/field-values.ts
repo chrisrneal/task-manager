@@ -1,3 +1,34 @@
+/**
+ * @fileoverview Task Field Values API Endpoint
+ * 
+ * This API endpoint manages custom field values for individual tasks. It provides
+ * secure operations for creating, reading, updating, and deleting field values
+ * with comprehensive validation using the custom field utilities.
+ * 
+ * Supported Operations:
+ * - GET: Retrieve all field values for a task with field definitions
+ * - POST: Batch create/update field values with comprehensive validation
+ * - DELETE: Remove all field values for a task
+ * 
+ * Key Features:
+ * - Custom field validation using utility functions
+ * - Batch operations for efficient field value management
+ * - Task type field assignment validation
+ * - Required field enforcement
+ * - Type-specific value validation
+ * - Project scope validation
+ * - Comprehensive error handling with detailed error reporting
+ * 
+ * Security:
+ * - Bearer token authentication required
+ * - Task ownership verification
+ * - Field assignment validation for task types
+ * - Project membership validation through task association
+ * 
+ * @author Task Manager Team
+ * @since 1.0.0
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,15 +38,26 @@ import { validateFieldValues } from '../../../../utils/customFieldUtils';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+/**
+ * Task Field Values API Handler
+ * 
+ * Handles HTTP requests for task field value management. Supports GET, POST, and DELETE
+ * methods with comprehensive validation using custom field utilities and proper
+ * authorization checks.
+ * 
+ * @param {NextApiRequest} req - Next.js API request object
+ * @param {NextApiResponse} res - Next.js API response object
+ * @returns {Promise<void>} Handles response directly, no return value
+ */
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   const { taskId } = req.query;
 
-  // Generate trace ID for request logging
+  // Generate unique trace ID for request logging and debugging
   const traceId = uuidv4();
   console.log(`[${traceId}] ${method} /api/tasks/${taskId}/field-values - Request received`);
 
-  // Extract user token from request
+  // Extract and validate Bearer token from Authorization header
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
 
@@ -27,6 +69,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     });
   }
 
+  // Validate task ID parameter
   if (!taskId || typeof taskId !== 'string') {
     console.log(`[${traceId}] Error: Invalid task ID`);
     return res.status(400).json({ 
@@ -35,12 +78,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     });
   }
 
-  // Create a Supabase client with the user's token for RLS
+  // Create Supabase client with user token for Row Level Security (RLS)
   const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
     global: { headers: { Authorization: `Bearer ${token}` } }
   });
 
-  // Verify the user session
+  // Verify user session and extract user information
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
     console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
@@ -51,7 +94,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   try {
-    // First verify user has access to the task
+    // Verify user has access to the task and get task context for validation
     const { data: task, error: taskError } = await supabase
       .from('tasks')
       .select('id, project_id, task_type_id, owner_id')
@@ -66,7 +109,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // Handle GET request - Get all field values for a task
+    /**
+     * GET /api/tasks/[taskId]/field-values
+     * 
+     * Retrieves all field values for a task along with field definitions.
+     * Includes complete field information needed for UI rendering.
+     */
     if (method === 'GET') {
       const { data: fieldValues, error } = await supabase
         .from('task_field_values')
@@ -97,10 +145,17 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // Handle POST request - Create or update field values for a task (batch operation)
+    /**
+     * POST /api/tasks/[taskId]/field-values
+     * 
+     * Batch create/update field values for a task with comprehensive validation.
+     * Uses the custom field validation utility to ensure all values are valid,
+     * required fields are provided, and fields are properly assigned to task types.
+     */
     if (method === 'POST') {
       const { field_values } = req.body;
 
+      // Validate request structure
       if (!field_values || !Array.isArray(field_values)) {
         console.log(`[${traceId}] Error: field_values array is required`);
         return res.status(400).json({ 
@@ -109,7 +164,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Validate each field value
+      // Validate each field value has required field_id
       for (const fieldValue of field_values) {
         if (!fieldValue.field_id) {
           console.log(`[${traceId}] Error: field_id is required for all field values`);
@@ -120,7 +175,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
       }
 
-      // Use utility function to validate field values
+      // Use comprehensive validation utility for all field value validation
+      // This includes type validation, required field checking, field assignment validation, etc.
       try {
         const validationResult = await validateFieldValues(
           supabase,
@@ -130,6 +186,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         );
 
         if (!validationResult.isValid) {
+          // Format validation errors for client consumption
           const errorMessages = validationResult.errors.map((e: any) => 
             `${e.field_name}: ${e.error}`
           ).join('; ');
@@ -149,17 +206,18 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         });
       }
 
-      // Use upsert to create or update field values
+      // Prepare field values for database upsert operation
       const fieldValuesToUpsert = field_values.map(fv => ({
         task_id: taskId,
         field_id: fv.field_id,
         value: fv.value || null
       }));
 
+      // Use upsert to handle both creation and updates efficiently
       const { data: upsertedValues, error: upsertError } = await supabase
         .from('task_field_values')
         .upsert(fieldValuesToUpsert, {
-          onConflict: 'task_id,field_id'
+          onConflict: 'task_id,field_id' // Handle duplicate task/field combinations
         })
         .select();
 
@@ -179,7 +237,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // Handle DELETE request - Delete all field values for a task
+    /**
+     * DELETE /api/tasks/[taskId]/field-values
+     * 
+     * Removes all field values for a task. This is typically used when
+     * removing a task type assignment or clearing all custom field data.
+     */
     if (method === 'DELETE') {
       const { error } = await supabase
         .from('task_field_values')
@@ -201,7 +264,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // Method not allowed
+    // Handle unsupported HTTP methods
     console.log(`[${traceId}] Error: Method ${method} not allowed`);
     return res.status(405).json({ 
       error: 'Method not allowed',
