@@ -1,43 +1,28 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { 
+  generateTraceId,
+  logRequest,
+  logError,
+  logSuccess,
+  createApiResponse,
+  sendApiResponse,
+  withAuth,
+  handleMethodNotAllowed,
+  handleUnhandledError,
+  validateRequiredParams
+} from '@/utils/apiUtils';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
+  const traceId = generateTraceId();
+  
+  logRequest(traceId, method || 'UNKNOWN', '/api/projects');
 
-  // Generate trace ID for request logging
-  const traceId = uuidv4();
-  console.log(`[${traceId}] ${method} /api/projects - Request received`);
+  // Authenticate user
+  const authContext = await withAuth(req, res, traceId);
+  if (!authContext) return; // Response already sent by withAuth
 
-  // Extract user token from request
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : undefined;
-
-  if (!token) {
-    console.log(`[${traceId}] Error: No authorization token provided`);
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      traceId
-    });
-  }
-
-  // Create a Supabase client with the user's token for RLS
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: `Bearer ${token}` } }
-  });
-
-  // Verify the user session
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log(`[${traceId}] Error: Invalid authentication - ${userError?.message}`);
-    return res.status(401).json({ 
-      error: 'Invalid authentication',
-      traceId
-    });
-  }
+  const { user, supabase } = authContext;
 
   try {
     // Handle GET request - List all projects
@@ -48,12 +33,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error(`[${traceId}] Error fetching projects: ${error.message}`);
-        return res.status(500).json({ error: error.message, traceId });
+        logError(traceId, `Error fetching projects: ${error.message}`);
+        return sendApiResponse(res, 500, createApiResponse(traceId, 500, undefined, error.message));
       }
 
-      console.log(`[${traceId}] GET /api/projects - Success, returned ${data.length} projects`);
-      return res.status(200).json({ data, traceId });
+      logSuccess(traceId, `GET /api/projects - Success, returned ${data.length} projects`);
+      return sendApiResponse(res, 200, createApiResponse(traceId, 200, data));
     }
     
     // Handle POST request - Create a new project
@@ -63,12 +48,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       console.log(`[${traceId}] POST body:`, req.body);
       console.log(`[${traceId}] Auth user id:`, user.id);
 
-      if (!name) {
-        console.log(`[${traceId}] Error: Missing required field 'name'`);
-        return res.status(400).json({ 
-          error: 'Project name is required',
-          traceId
-        });
+      // Validate required fields
+      const validation = validateRequiredParams({ name }, traceId);
+      if (validation) {
+        return sendApiResponse(res, 400, createApiResponse(traceId, 400, undefined, validation.message));
       }
 
       const insertPayload = {
@@ -80,35 +63,29 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       const { data, error } = await supabase
         .from('projects')
-        .insert([
-          insertPayload
-        ])
+        .insert([insertPayload])
         .select()
         .single();
 
       if (error) {
-        console.error(`[${traceId}] Error inserting project:`, error);
-        return res.status(500).json({ error: error.message, details: error.details, traceId });
+        logError(traceId, 'Error inserting project', error);
+        return sendApiResponse(res, 500, createApiResponse(
+          traceId, 
+          500, 
+          undefined, 
+          error.message, 
+          error.details
+        ));
       }
 
-      console.log(`[${traceId}] POST /api/projects - Success, created project: ${data.id}`);
-      return res.status(201).json({ data, traceId });
+      logSuccess(traceId, `POST /api/projects - Success, created project: ${data.id}`);
+      return sendApiResponse(res, 201, createApiResponse(traceId, 201, data));
     }
     
     // Handle unsupported methods
-    console.log(`[${traceId}] Error: Method ${method} not allowed`);
-    res.setHeader('Allow', ['GET', 'POST']);
-    return res.status(405).json({ 
-      error: `Method ${method} not allowed`,
-      traceId
-    });
+    return handleMethodNotAllowed(res, traceId, method || 'UNKNOWN', ['GET', 'POST']);
   } catch (error: any) {
-    console.error(`[${traceId}] Error: ${error.message}`);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message,
-      traceId
-    });
+    return handleUnhandledError(res, traceId, error);
   }
 };
 
