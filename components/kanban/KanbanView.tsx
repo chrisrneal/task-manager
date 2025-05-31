@@ -77,8 +77,8 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         states={states}
         projectMembers={projectMembers}
         groupedTasks={groupedTasks}
-        TASK_STATUSES={TASK_STATUSES}
-        handleToggleTaskStatus={handleToggleTaskStatus}
+        TASK_STATUSES={TASK_STATUSES || { TODO: 'todo', IN_PROGRESS: 'in_progress', DONE: 'done' }}
+        handleToggleTaskStatus={handleToggleTaskStatus || (() => {})}
         handleDeleteTask={handleDeleteTask}
         getNextValidStates={getNextValidStates}
       />
