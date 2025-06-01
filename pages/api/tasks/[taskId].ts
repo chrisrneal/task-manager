@@ -195,7 +195,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
           if (ttfError) {
             console.error(`[${traceId}] Error fetching task type fields: ${ttfError.message}`);
-            throw new ValidationError('Failed to validate task type fields', 500, traceId);
+            throw ttfError; // Re-throw Supabase error to be handled as 500 by handleApiOperation
           }
 
           // Validate Required Fields - ensure all required fields have values
@@ -223,6 +223,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
         // Workflow State Transition Validation - verify state changes are allowed BEFORE updating
         if (state_id && state_id !== existingTask.state_id && finalTaskTypeId) {
+          console.log(`[${traceId}] State transition validation: ${existingTask.state_id} -> ${state_id}`);
+          
           // Get the workflow ID associated with the task type
           const { data: taskType, error: taskTypeError } = await supabase
             .from('task_types')
@@ -230,30 +232,47 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             .eq('id', finalTaskTypeId)
             .single();
 
-          if (taskTypeError) throw taskTypeError;
+          if (taskTypeError) {
+            console.error(`[${traceId}] Error fetching task type: ${taskTypeError.message}`);
+            throw taskTypeError;
+          }
+          
+          console.log(`[${traceId}] Task type workflow_id: ${taskType?.workflow_id}`);
           
           if (taskType?.workflow_id) {
             // Get all valid transitions for this workflow
+            console.log(`[${traceId}] Fetching transitions for workflow: ${taskType.workflow_id}`);
             const { data: transitions, error: transitionsError } = await supabase
               .from('workflow_transitions')
               .select('*')
               .eq('workflow_id', taskType.workflow_id);
               
-            if (transitionsError) throw transitionsError;
+            if (transitionsError) {
+              console.error(`[${traceId}] Error fetching transitions: ${transitionsError.message}`);
+              throw transitionsError;
+            }
+            
+            console.log(`[${traceId}] Found ${transitions?.length || 0} transitions:`, transitions);
             
             // Validate the requested state transition is allowed
-            const isValidTransition = transitions.some((t: any) => 
-              // Direct transition from current state to new state
-              (t.from_state === existingTask.state_id && t.to_state === state_id) ||
-              // Universal transition (from any state) - represented by NULL in database
-              (t.from_state === null && t.to_state === state_id)
-            );
+            const isValidTransition = transitions.some((t: any) => {
+              const directMatch = t.from_state === existingTask.state_id && t.to_state === state_id;
+              const universalMatch = t.from_state === null && t.to_state === state_id;
+              console.log(`[${traceId}] Checking transition: from_state=${t.from_state}, to_state=${t.to_state}, direct=${directMatch}, universal=${universalMatch}`);
+              return directMatch || universalMatch;
+            });
+            
+            console.log(`[${traceId}] Is valid transition: ${isValidTransition}`);
             
             if (!isValidTransition) {
               console.log(`[${traceId}] Error: Invalid state transition from ${existingTask.state_id} to ${state_id}`);
               throw new ValidationError('Invalid state transition according to workflow rules', 400, traceId);
             }
+          } else {
+            console.log(`[${traceId}] Task type has no workflow, skipping transition validation`);
           }
+        } else {
+          console.log(`[${traceId}] State transition validation skipped: state_id=${state_id}, existing_state=${existingTask.state_id}, finalTaskTypeId=${finalTaskTypeId}`);
         }
 
         // Update the task with provided values, preserving existing values for unspecified fields
@@ -339,6 +358,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Handle validation errors with specific status codes and messages
     if (error instanceof ValidationError) {
       console.log(`[${traceId}] Handling ValidationError: ${error.statusCode} - ${error.message}`);
+      console.log(`[${traceId}] ValidationError traceId: ${error.traceId}`);
       
       // Check if response has already been sent
       if (res.headersSent) {
@@ -346,10 +366,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         return;
       }
       
-      return res.status(error.statusCode).json({
+      const errorResponse = {
         error: error.message,
         traceId: error.traceId || traceId
-      });
+      };
+      
+      console.log(`[${traceId}] Sending ValidationError response:`, errorResponse);
+      
+      return res.status(error.statusCode).json(errorResponse);
     }
     
     console.log(`[${traceId}] Re-throwing non-ValidationError: ${error.constructor.name}`);
