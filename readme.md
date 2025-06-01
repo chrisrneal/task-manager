@@ -269,6 +269,26 @@ The workflow system is implemented with:
 4. Run the development server with `npm run dev`
 5. Visit `http://localhost:3000` to see the app
 
+## Admin Setup
+
+The admin template management interface allows creating and managing project templates without direct database access. To set up admin users:
+
+1. **Register a user account** through the normal registration process
+2. **Run the admin setup script** to promote the user:
+   ```bash
+   node scripts/setup-admin.js admin@example.com
+   ```
+3. **Have the user log out and log back in** for the role to take effect
+4. **Access the admin interface** at `/admin/templates`
+
+Admin users will see an "Admin" link in the navigation and can:
+- Create new project templates with custom fields
+- Edit existing templates
+- Delete templates with confirmation
+- View template usage statistics
+
+For detailed setup instructions, see [`docs/admin/admin-setup.md`](docs/admin/admin-setup.md).
+
 ## Tech Stack
 
 - **Frontend**: Next.js, React, Tailwind CSS
