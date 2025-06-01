@@ -7,11 +7,13 @@
  * 
  * Supported Operations:
  * - GET: List all projects for the authenticated user
- * - POST: Create new projects with validation
+ * - POST: Create new projects with validation and optional template application
  * 
  * Key Features:
  * - User-scoped project listing (only user's projects)
  * - Project creation with validation
+ * - Template-based project initialization
+ * - Fallback to manual setup when no template provided
  * - Row Level Security enforcement
  * - Comprehensive error handling with trace IDs
  * - Proper authentication and session validation
@@ -29,6 +31,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import { applyTemplateToProject, getTemplateWithDetails } from '@/services/projectService';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -86,7 +89,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle POST request - Create a new project
     if (method === 'POST') {
-      const { name, description } = req.body;
+      const { name, description, template_id } = req.body;
 
       console.log(`[${traceId}] POST body:`, req.body);
       console.log(`[${traceId}] Auth user id:`, user.id);
@@ -117,6 +120,49 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       if (error) {
         console.error(`[${traceId}] Error inserting project:`, error);
         return res.status(500).json({ error: error.message, details: error.details, traceId });
+      }
+
+      console.log(`[${traceId}] Created project: ${data.id}`);
+
+      // Apply template if template_id is provided
+      if (template_id) {
+        console.log(`[${traceId}] Applying template ${template_id} to project ${data.id}`);
+        
+        try {
+          // Fetch the template with details
+          const template = await getTemplateWithDetails(supabase, template_id, traceId);
+          
+          if (!template) {
+            console.error(`[${traceId}] Template not found: ${template_id}`);
+            return res.status(400).json({ 
+              error: 'Template not found',
+              traceId
+            });
+          }
+
+          // Apply the template to the project
+          const templateResult = await applyTemplateToProject(supabase, data, template, traceId);
+          
+          if (!templateResult.success) {
+            console.error(`[${traceId}] Error applying template: ${templateResult.error}`);
+            return res.status(500).json({ 
+              error: 'Failed to apply template to project',
+              details: templateResult.details,
+              traceId
+            });
+          }
+
+          console.log(`[${traceId}] Successfully applied template to project`);
+        } catch (templateError: any) {
+          console.error(`[${traceId}] Error during template application: ${templateError.message}`);
+          return res.status(500).json({ 
+            error: 'Failed to apply template to project',
+            details: templateError.message,
+            traceId
+          });
+        }
+      } else {
+        console.log(`[${traceId}] No template specified, project created with manual setup`);
       }
 
       console.log(`[${traceId}] POST /api/projects - Success, created project: ${data.id}`);
