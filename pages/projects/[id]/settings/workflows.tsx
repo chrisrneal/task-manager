@@ -194,28 +194,28 @@ const WorkflowSettings = () => {
         </div>
 
         {/* Settings Navigation */}
-        <div className="flex space-x-4 mb-6">
+        <div className="flex border-b border-gray-200 dark:border-zinc-700 mb-6 overflow-x-auto">
           <Link
             href={`/projects/${projectId}/settings`}
-            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+            className="px-4 py-2 text-sm font-medium whitespace-nowrap text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
           >
             General
           </Link>
           <Link
             href={`/projects/${projectId}/settings/members`}
-            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+            className="px-4 py-2 text-sm font-medium whitespace-nowrap text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
           >
             Members
           </Link>
           <Link
             href={`/projects/${projectId}/settings/fields`}
-            className="px-3 py-1.5 border border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+            className="px-4 py-2 text-sm font-medium whitespace-nowrap text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
           >
             Fields
           </Link>
           <Link
             href={`/projects/${projectId}/settings/workflows`}
-            className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            className="px-4 py-2 text-sm font-medium whitespace-nowrap text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400"
           >
             Workflows
           </Link>
