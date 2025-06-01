@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ProjectTemplateWithDetails } from '@/types/database';
-import { fetchTemplates } from '@/api/templates';
+import { supabase } from '@/utils/supabaseClient';
 import TemplateCard from './TemplateCard';
 
 interface ProjectCreateWizardProps {
@@ -53,7 +53,29 @@ const ProjectCreateWizard: React.FC<ProjectCreateWizardProps> = ({
       try {
         setIsLoadingTemplates(true);
         setTemplateError(null);
-        const data = await fetchTemplates();
+        
+        // Get the session token
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        
+        if (!token) {
+          throw new Error('No authentication token available');
+        }
+        
+        const response = await fetch('/api/templates', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        const data = result.data || [];
         setTemplates(data);
         
         // If no templates available, skip to project details
