@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Page from '@/components/page';
 import Section from '@/components/section';
+import ProjectCreateWizard from '@/components/ProjectCreateWizard';
 import { useAuth } from '@/components/AuthContext';
 import { useRouter } from 'next/router';
 import { Project } from '@/types/database';
@@ -16,9 +17,8 @@ const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
 
   // Check for deletion success message from query params
@@ -89,28 +89,26 @@ const Projects = () => {
     }
   }, [user]);
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  // Handle project creation from wizard
+  const handleCreateProject = async (projectData: {
+    name: string;
+    description: string;
+    template_id?: string;
+  }) => {
     if (!user) return;
-    if (!name.trim()) {
-      setError('Project name is required');
-      return;
-    }
 
     setIsSubmitting(true);
     setError(null);
     
     try {
       const traceId = uuidv4();
-      console.log(`[${traceId}] Creating new project: ${name}`);
+      console.log(`[${traceId}] Creating new project: ${projectData.name}`);
       
       // First add optimistically to the UI
       const newProject: Partial<Project> = {
         id: `temp-${Date.now()}`,
-        name,
-        description: description || null,
+        name: projectData.name,
+        description: projectData.description || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         user_id: user.id,
@@ -133,8 +131,9 @@ const Projects = () => {
           'Authorization': 'Bearer ' + token
         },
         body: JSON.stringify({
-          name,
-          description: description || null
+          name: projectData.name,
+          description: projectData.description || null,
+          ...(projectData.template_id ? { template_id: projectData.template_id } : {})
         })
       });
       
@@ -152,9 +151,8 @@ const Projects = () => {
         )
       );
       
-      // Clear the form
-      setName('');
-      setDescription('');
+      // Close the wizard
+      setShowWizard(false);
     } catch (err: any) {
       // Remove the optimistic update
       setProjects(prev => prev.filter(p => p.id !== `temp-${Date.now()}`.substring(0, 13)));
@@ -173,7 +171,7 @@ const Projects = () => {
         <h2 className='text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-4'>
           Projects
         </h2>
-        
+
         {/* Success message for project deletion */}
         {showDeleteSuccess && (
           <div className="bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 px-4 py-2 rounded-md mb-4">
@@ -187,46 +185,33 @@ const Projects = () => {
           </div>
         )}
         
-        {/* Create Project Form */}
-        <div className='bg-white dark:bg-zinc-800 rounded-lg p-4 mb-6 shadow-sm'>
-          <h3 className='font-medium mb-3'>Create New Project</h3>
-          <form onSubmit={handleSubmit}>
-            <div className='mb-3'>
-              <label htmlFor='name' className='block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1'>
-                Project Name
-              </label>
-              <input
-                type='text'
-                id='name'
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className='w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600'
-                placeholder='Enter project name'
-                required
-              />
-            </div>
-            <div className='mb-4'>
-              <label htmlFor='description' className='block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1'>
-                Description (optional)
-              </label>
-              <textarea
-                id='description'
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className='w-full p-2 border rounded-md dark:bg-zinc-700 dark:border-zinc-600'
-                placeholder='Enter project description'
-                rows={3}
-              />
-            </div>
+        {/* Create Project Wizard */}
+        {showWizard ? (
+          <div className="mb-6">
+            <ProjectCreateWizard
+              onSubmit={handleCreateProject}
+              onCancel={() => {
+                setShowWizard(false);
+                setError(null);
+              }}
+              isSubmitting={isSubmitting}
+              error={error}
+            />
+          </div>
+        ) : (
+          <div className='bg-white dark:bg-zinc-800 rounded-lg p-4 mb-6 shadow-sm'>
+            <h3 className='font-medium mb-3'>Create New Project</h3>
+            <p className='text-sm text-zinc-600 dark:text-zinc-400 mb-4'>
+              Start a new project from a template or create one manually.
+            </p>
             <button
-              type='submit'
-              disabled={isSubmitting || !name.trim()}
-              className='px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50'
+              onClick={() => setShowWizard(true)}
+              className='px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700'
             >
-              {isSubmitting ? 'Creating...' : 'Create Project'}
+              Create Project
             </button>
-          </form>
-        </div>
+          </div>
+        )}
         
         {/* Projects List */}
         <div>
