@@ -32,7 +32,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
-import { ProjectTemplateWithDetails, TemplateState, TemplateWorkflow, TemplateTaskType, TemplateField } from '../../../types/database';
+import { ProjectTemplateWithDetails, TemplateState, TemplateWorkflow, TemplateTaskType, TemplateField } from '../../types/database';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
