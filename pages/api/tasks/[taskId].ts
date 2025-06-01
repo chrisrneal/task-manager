@@ -61,6 +61,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { user, supabase, traceId } = context;
 
   try {
+    console.log(`[${traceId}] Starting task operation: ${method} /api/tasks/${taskId}`);
     await handleApiOperation(async () => {
       /**
        * GET /api/tasks/[taskId]
@@ -133,8 +134,22 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       if (method === 'PUT') {
         const { name, description, status, priority, due_date, task_type_id, state_id, field_values, assignee_id } = req.body;
         
+        console.log(`[${traceId}] PUT request body:`, {
+          name: name,
+          description: description ? 'provided' : 'not provided',
+          status: status,
+          priority: priority,
+          due_date: due_date,
+          task_type_id: task_type_id,
+          state_id: state_id,
+          field_values: field_values ? `array of ${field_values.length} items` : 'not provided',
+          assignee_id: assignee_id
+        });
+        
         // Validate required fields
+        console.log(`[${traceId}] Validating required fields...`);
         if (!validateRequiredParams({ name }, res, traceId)) {
+          console.log(`[${traceId}] Required field validation failed, returning early`);
           return;
         }
 
@@ -318,14 +333,26 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return sendErrorResponse(res, 405, `Method ${method} not allowed`, traceId);
     }, res, traceId, 'Internal server error');
   } catch (error: any) {
+    console.log(`[${traceId}] Caught error in task endpoint: ${error.constructor.name}: ${error.message}`);
+    console.log(`[${traceId}] Error instanceof ValidationError: ${error instanceof ValidationError}`);
+    
     // Handle validation errors with specific status codes and messages
     if (error instanceof ValidationError) {
+      console.log(`[${traceId}] Handling ValidationError: ${error.statusCode} - ${error.message}`);
+      
+      // Check if response has already been sent
+      if (res.headersSent) {
+        console.error(`[${traceId}] WARNING: Cannot send ValidationError response, headers already sent`);
+        return;
+      }
+      
       return res.status(error.statusCode).json({
         error: error.message,
         traceId: error.traceId || traceId
       });
     }
     
+    console.log(`[${traceId}] Re-throwing non-ValidationError: ${error.constructor.name}`);
     // Re-throw unexpected errors to be handled by handleApiOperation
     throw error;
   }

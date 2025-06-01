@@ -94,7 +94,15 @@ export function sendErrorResponse(
     ...(details && { details })
   };
   
-  console.log(`[${traceId}] Error: ${message}${details ? ` - ${details}` : ''}`);
+  console.log(`[${traceId}] Sending error response: ${status} - ${message}${details ? ` - ${details}` : ''}`);
+  console.log(`[${traceId}] Response body: ${JSON.stringify(response)}`);
+  
+  // Check if response has already been sent
+  if (res.headersSent) {
+    console.error(`[${traceId}] WARNING: Attempted to send response but headers already sent`);
+    return;
+  }
+  
   res.status(status).json(response);
 }
 
@@ -156,12 +164,18 @@ export function validateRequiredParams(
   res: NextApiResponse,
   traceId: string
 ): boolean {
+  console.log(`[${traceId}] validateRequiredParams called with:`, Object.keys(params));
+  
   for (const [key, value] of Object.entries(params)) {
+    console.log(`[${traceId}] Checking param ${key}: ${value} (type: ${typeof value})`);
     if (!value || (typeof value === 'string' && value.trim() === '')) {
+      console.log(`[${traceId}] Validation failed for param ${key}: value is empty`);
       sendErrorResponse(res, 400, `${key} is required`, traceId);
       return false;
     }
   }
+  
+  console.log(`[${traceId}] All required params validation passed`);
   return true;
 }
 
@@ -260,12 +274,18 @@ export async function handleApiOperation(
 ): Promise<void> {
   try {
     await operation();
+    console.log(`[${traceId}] API operation completed successfully`);
   } catch (error: any) {
+    console.log(`[${traceId}] handleApiOperation caught error: ${error.constructor.name}: ${error.message}`);
+    console.log(`[${traceId}] Error instanceof ValidationError: ${error instanceof ValidationError}`);
+    
     // Re-throw validation errors to be handled by the calling code
     if (error instanceof ValidationError) {
+      console.log(`[${traceId}] Re-throwing ValidationError to calling code`);
       throw error;
     }
     
+    console.log(`[${traceId}] Handling unexpected system error`);
     // Handle unexpected system errors
     sendErrorResponse(res, 500, errorMessage, traceId, error.message);
   }
