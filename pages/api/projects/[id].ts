@@ -114,30 +114,48 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle DELETE request - Delete a project
     if (method === 'DELETE') {
-      // First check if project exists and belongs to user
-      const { data: existingProject, error: findError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', id)
+      // Check if user is owner or admin of the project
+      const { data: memberData, error: memberError } = await supabase
+        .from('project_members')
+        .select('role')
+        .eq('project_id', id)
         .eq('user_id', user.id)
         .single();
 
-      if (findError) {
-        if (findError.code === 'PGRST116') {
+      if (memberError || !memberData || memberData.role !== 'owner') {
+        // Check if user is a system admin
+        if (user.app_metadata?.role !== 'admin') {
           console.log(`[${traceId}] Error: Project not found or access denied - ${id}`);
           return res.status(404).json({ 
             error: 'Project not found or access denied',
             traceId
           });
         }
+      }
+
+      // Verify project exists before deletion
+      const { data: existingProject, error: findError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (findError) {
+        if (findError.code === 'PGRST116') {
+          console.log(`[${traceId}] Error: Project not found - ${id}`);
+          return res.status(404).json({ 
+            error: 'Project not found',
+            traceId
+          });
+        }
         throw findError;
       }
 
+      // Delete the project (RLS policy will handle the final authorization check)
       const { error } = await supabase
         .from('projects')
         .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('id', id);
 
       if (error) throw error;
       
