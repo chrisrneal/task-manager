@@ -53,22 +53,35 @@ const ProjectSettings = () => {
               .eq('project_id', projectId)
               .eq('user_id', user.id)
               .single();
-              
-            if (memberError || !memberData) {
-              // Check if user is a system admin
-              if (user.app_metadata?.role !== 'admin') {
-                router.replace(`/projects/${projectId}`);
-                return;
-              }
-              setUserRole('admin');
-            } else {
-              setUserRole(memberData.role);
+            
+            let tempUserRole = null;
+            
+            if (memberData) {
+              tempUserRole = memberData.role;
               
               // Only owners and admins can access settings
               if (memberData.role !== 'owner' && memberData.role !== 'admin' && user.app_metadata?.role !== 'admin') {
                 router.replace(`/projects/${projectId}`);
                 return;
               }
+            } else if (memberError && memberError.code === 'PGRST116') {
+              // No membership record found, check if user is system admin
+              if (user.app_metadata?.role === 'admin') {
+                tempUserRole = 'admin';
+              } else {
+                // Check legacy user_id field for backwards compatibility
+                // We'll check ownership after getting project data
+                tempUserRole = null;
+              }
+            } else if (memberError) {
+              throw memberError;
+            } else {
+              // Check if user is a system admin
+              if (user.app_metadata?.role !== 'admin') {
+                router.replace(`/projects/${projectId}`);
+                return;
+              }
+              tempUserRole = 'admin';
             }
             
             // Get project data
@@ -82,6 +95,17 @@ const ProjectSettings = () => {
               router.replace('/projects');
               return;
             }
+            
+            // Check legacy ownership if no membership record was found
+            if (tempUserRole === null && projectData.user_id === user.id) {
+              tempUserRole = 'owner'; // Legacy owner
+            } else if (tempUserRole === null) {
+              // User is not authorized
+              router.replace(`/projects/${projectId}`);
+              return;
+            }
+            
+            setUserRole(tempUserRole);
             
             setIsAdmin(true);
             setProject(projectData);
