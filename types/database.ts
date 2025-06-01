@@ -138,6 +138,71 @@ export interface TaskWithAssignee extends Task {
   assignee?: ProjectMemberWithUser | null;
 }
 
+// Project Template Types
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TemplateState {
+  id: string;
+  template_id: string;
+  name: string;
+  position: number;
+}
+
+export interface TemplateWorkflow {
+  id: string;
+  template_id: string;
+  name: string;
+}
+
+export interface TemplateWorkflowStep {
+  workflow_id: string;
+  state_id: string;
+  step_order: number;
+}
+
+export interface TemplateWorkflowTransition {
+  workflow_id: string;
+  from_state: string | null; // For "any state", use '00000000-0000-0000-0000-000000000000' instead of null due to DB constraints
+  to_state: string;
+}
+
+export interface TemplateTaskType {
+  id: string;
+  template_id: string;
+  name: string;
+  workflow_id: string;
+}
+
+export interface TemplateField {
+  id: string;
+  template_id: string;
+  name: string;
+  input_type: FieldInputType;
+  is_required: boolean;
+  options?: string[];
+  default_value?: string;
+}
+
+export interface TemplateTaskTypeField {
+  task_type_id: string;
+  field_id: string;
+}
+
+// Extended template interfaces with joined data
+export interface ProjectTemplateWithDetails extends ProjectTemplate {
+  states: TemplateState[];
+  workflows: TemplateWorkflow[];
+  task_types: TemplateTaskType[];
+  fields: TemplateField[];
+}
+
 export interface Database {
   projects: Project[];
   project_states: ProjectState[];
@@ -152,4 +217,13 @@ export interface Database {
   fields: Field[];
   task_type_fields: TaskTypeField[];
   task_field_values: TaskFieldValue[];
+  // Template tables
+  project_templates: ProjectTemplate[];
+  template_states: TemplateState[];
+  template_workflows: TemplateWorkflow[];
+  template_workflow_steps: TemplateWorkflowStep[];
+  template_workflow_transitions: TemplateWorkflowTransition[];
+  template_task_types: TemplateTaskType[];
+  template_fields: TemplateField[];
+  template_task_type_fields: TemplateTaskTypeField[];
 }
