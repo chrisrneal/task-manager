@@ -19,6 +19,8 @@ const ProjectSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editedProjectName, setEditedProjectName] = useState('');
   const [editedProjectDescription, setEditedProjectDescription] = useState('');
   const [isSubmittingName, setIsSubmittingName] = useState(false);
@@ -44,6 +46,45 @@ const ProjectSettings = () => {
           }
           
           try {
+            // First check if user is a member of the project
+            const { data: memberData, error: memberError } = await supabase
+              .from('project_members')
+              .select('role')
+              .eq('project_id', projectId)
+              .eq('user_id', user.id)
+              .single();
+            
+            let tempUserRole = null;
+            
+            if (memberData) {
+              tempUserRole = memberData.role;
+              
+              // Only owners and admins can access settings
+              if (memberData.role !== 'owner' && memberData.role !== 'admin' && user.app_metadata?.role !== 'admin') {
+                router.replace(`/projects/${projectId}`);
+                return;
+              }
+            } else if (memberError && memberError.code === 'PGRST116') {
+              // No membership record found, check if user is system admin
+              if (user.app_metadata?.role === 'admin') {
+                tempUserRole = 'admin';
+              } else {
+                // Check legacy user_id field for backwards compatibility
+                // We'll check ownership after getting project data
+                tempUserRole = null;
+              }
+            } else if (memberError) {
+              throw memberError;
+            } else {
+              // Check if user is a system admin
+              if (user.app_metadata?.role !== 'admin') {
+                router.replace(`/projects/${projectId}`);
+                return;
+              }
+              tempUserRole = 'admin';
+            }
+            
+            // Get project data
             const { data: projectData } = await supabase
               .from('projects')
               .select('*')
@@ -55,18 +96,21 @@ const ProjectSettings = () => {
               return;
             }
             
-            const userIsOwner = projectData.user_id === user.id;
-            const userIsAdmin = user.app_metadata?.role === 'admin';
-            
-            if (!userIsOwner && !userIsAdmin) {
+            // Check legacy ownership if no membership record was found
+            if (tempUserRole === null && projectData.user_id === user.id) {
+              tempUserRole = 'owner'; // Legacy owner
+            } else if (tempUserRole === null) {
+              // User is not authorized
               router.replace(`/projects/${projectId}`);
               return;
             }
             
+            setUserRole(tempUserRole);
+            
             setIsAdmin(true);
             setProject(projectData);
-            setEditedProjectName(projectData.name); // Initialize edited project name
-            setEditedProjectDescription(projectData.description || ''); // Initialize edited project description
+            setEditedProjectName(projectData.name);
+            setEditedProjectDescription(projectData.description || '');
           } catch (err) {
             router.replace('/projects');
           }
@@ -195,6 +239,57 @@ const ProjectSettings = () => {
     }
   };
 
+  // Handler to delete the project
+  const handleDeleteProject = async () => {
+    if (!projectId || !project) return;
+    
+    const confirmMessage = `Are you sure you want to delete "${project.name}"? This will permanently delete all tasks, states, workflows, and other project data. This action cannot be undone.`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    setError(null);
+    
+    try {
+      const traceId = uuidv4();
+      console.log(`[${traceId}] Deleting project: ${projectId}`);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Call API to delete project
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete project');
+      }
+      
+      console.log(`[${traceId}] Project deleted successfully`);
+      
+      // Redirect to projects list with success message
+      router.push('/projects?deleted=true');
+    } catch (err: any) {
+      console.error('Error deleting project:', err.message);
+      setError('Failed to delete project. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Loading state
   if (loading || isLoading) {
     return (
@@ -319,6 +414,23 @@ const ProjectSettings = () => {
               )}
             </form>
           </div>
+
+          {/* Delete Project Section - Only show to project owners */}
+          {(userRole === 'owner' || user?.app_metadata?.role === 'admin') && (
+            <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm border border-red-200 dark:border-red-800">
+              <h3 className="font-medium mb-2 text-red-800 dark:text-red-300">Danger Zone</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                Deleting a project is permanent and cannot be undone. This will delete all tasks, states, workflows, members, and other project data.
+              </p>
+              <button
+                onClick={handleDeleteProject}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? "Deleting..." : "Delete Project"}
+              </button>
+            </div>
+          )}
         </div>
       </Section>
     </Page>

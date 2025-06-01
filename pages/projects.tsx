@@ -19,6 +19,20 @@ const Projects = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+
+  // Check for deletion success message from query params
+  useEffect(() => {
+    if (router.query.deleted === 'true') {
+      setShowDeleteSuccess(true);
+      // Remove the query parameter from URL
+      router.replace('/projects', undefined, { shallow: true });
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setShowDeleteSuccess(false);
+      }, 5000);
+    }
+  }, [router]);
 
   // Auth protection
   useEffect(() => {
@@ -157,6 +171,19 @@ const Projects = () => {
         <h2 className='text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-4'>
           Projects
         </h2>
+
+        {/* Success message for project deletion */}
+        {showDeleteSuccess && (
+          <div className="bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 px-4 py-2 rounded-md mb-4">
+            Project deleted successfully.
+          </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-300 px-4 py-2 rounded-md mb-4">
+            {error}
+          </div>
+        )}
         
         {/* Create Project Wizard */}
         {showWizard ? (
