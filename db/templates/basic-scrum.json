@@ -1,0 +1,97 @@
+{
+  "name": "Basic Scrum Template",
+  "description": "A standard Scrum template with common states, workflows, and fields for agile development teams",
+  "icon": "🏃‍♂️",
+  "states": [
+    {
+      "name": "Product Backlog",
+      "position": 1
+    },
+    {
+      "name": "Sprint Backlog",
+      "position": 2
+    },
+    {
+      "name": "In Progress",
+      "position": 3
+    },
+    {
+      "name": "In Review",
+      "position": 4
+    },
+    {
+      "name": "Testing",
+      "position": 5
+    },
+    {
+      "name": "Done",
+      "position": 6
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Scrum Development Workflow"
+    },
+    {
+      "name": "Bug Fix Workflow"
+    }
+  ],
+  "task_types": [
+    {
+      "name": "User Story",
+      "workflow_id": "Scrum Development Workflow"
+    },
+    {
+      "name": "Epic",
+      "workflow_id": "Scrum Development Workflow"
+    },
+    {
+      "name": "Bug",
+      "workflow_id": "Bug Fix Workflow"
+    },
+    {
+      "name": "Task",
+      "workflow_id": "Scrum Development Workflow"
+    }
+  ],
+  "fields": [
+    {
+      "name": "Story Points",
+      "input_type": "select",
+      "is_required": false,
+      "options": ["1", "2", "3", "5", "8", "13", "21"],
+      "default_value": "3"
+    },
+    {
+      "name": "Priority",
+      "input_type": "select",
+      "is_required": true,
+      "options": ["Low", "Medium", "High", "Critical"],
+      "default_value": "Medium"
+    },
+    {
+      "name": "Sprint",
+      "input_type": "text",
+      "is_required": false,
+      "default_value": ""
+    },
+    {
+      "name": "Acceptance Criteria",
+      "input_type": "textarea",
+      "is_required": false,
+      "default_value": ""
+    },
+    {
+      "name": "Business Value",
+      "input_type": "number",
+      "is_required": false,
+      "default_value": "0"
+    },
+    {
+      "name": "Ready for Development",
+      "input_type": "checkbox",
+      "is_required": false,
+      "default_value": "false"
+    }
+  ]
+}
