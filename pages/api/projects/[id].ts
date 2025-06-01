@@ -114,26 +114,60 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Handle DELETE request - Delete a project
     if (method === 'DELETE') {
-      // Check if user is owner or admin of the project
-      const { data: memberData, error: memberError } = await supabase
-        .from('project_members')
-        .select('role')
-        .eq('project_id', id)
-        .eq('user_id', user.id)
-        .single();
+      let isAuthorized = false;
+      
+      // Check if user is a system admin first
+      if (user.app_metadata?.role === 'admin') {
+        isAuthorized = true;
+        console.log(`[${traceId}] System admin access granted for project deletion`);
+      } else {
+        // Check if user is owner via project_members table
+        const { data: memberData, error: memberError } = await supabase
+          .from('project_members')
+          .select('role')
+          .eq('project_id', id)
+          .eq('user_id', user.id)
+          .single();
 
-      if (memberError || !memberData || memberData.role !== 'owner') {
-        // Check if user is a system admin
-        if (user.app_metadata?.role !== 'admin') {
-          console.log(`[${traceId}] Error: Project not found or access denied - ${id}`);
-          return res.status(404).json({ 
-            error: 'Project not found or access denied',
-            traceId
-          });
+        if (memberData && memberData.role === 'owner') {
+          isAuthorized = true;
+          console.log(`[${traceId}] Project owner access granted via membership`);
+        } else if (memberError && memberError.code === 'PGRST116') {
+          // No membership record found, check legacy user_id field for backwards compatibility
+          console.log(`[${traceId}] No membership record found, checking legacy user_id field`);
+          
+          const { data: projectData, error: projectError } = await supabase
+            .from('projects')
+            .select('user_id')
+            .eq('id', id)
+            .single();
+            
+          if (projectData && projectData.user_id === user.id) {
+            isAuthorized = true;
+            console.log(`[${traceId}] Project owner access granted via legacy user_id field`);
+          } else if (projectError && projectError.code === 'PGRST116') {
+            console.log(`[${traceId}] Error: Project not found - ${id}`);
+            return res.status(404).json({ 
+              error: 'Project not found',
+              traceId
+            });
+          } else if (projectError) {
+            throw projectError;
+          }
+        } else if (memberError) {
+          throw memberError;
         }
       }
+      
+      if (!isAuthorized) {
+        console.log(`[${traceId}] Error: Access denied - user is not owner or admin of project ${id}`);
+        return res.status(403).json({ 
+          error: 'Access denied - only project owners can delete projects',
+          traceId
+        });
+      }
 
-      // Verify project exists before deletion
+      // Verify project exists before deletion (final check)
       const { data: existingProject, error: findError } = await supabase
         .from('projects')
         .select('*')
