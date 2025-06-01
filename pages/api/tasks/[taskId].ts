@@ -254,22 +254,49 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             
             console.log(`[${traceId}] Found ${transitions?.length || 0} transitions:`, transitions);
             
+            // If no transitions are defined, reject the state change
+            if (!transitions || transitions.length === 0) {
+              console.log(`[${traceId}] No transitions defined for workflow, rejecting state change`);
+              throw new ValidationError('No state transitions are configured for this workflow', 400, traceId);
+            }
+            
+            // Normalize state IDs for comparison (convert to strings and handle null/undefined)
+            const fromStateStr = existingTask.state_id ? String(existingTask.state_id).trim() : null;
+            const toStateStr = state_id ? String(state_id).trim() : null;
+            
+            console.log(`[${traceId}] Normalized state comparison: '${fromStateStr}' -> '${toStateStr}'`);
+            
             // Validate the requested state transition is allowed
             const isValidTransition = transitions.some((t: any) => {
-              const directMatch = t.from_state === existingTask.state_id && t.to_state === state_id;
-              const universalMatch = t.from_state === null && t.to_state === state_id;
-              console.log(`[${traceId}] Checking transition: from_state=${t.from_state}, to_state=${t.to_state}, direct=${directMatch}, universal=${universalMatch}`);
+              const transitionFromState = t.from_state ? String(t.from_state).trim() : null;
+              const transitionToState = t.to_state ? String(t.to_state).trim() : null;
+              
+              const directMatch = transitionFromState === fromStateStr && transitionToState === toStateStr;
+              const universalMatch = transitionFromState === null && transitionToState === toStateStr;
+              
+              console.log(`[${traceId}] Checking transition: from='${transitionFromState}', to='${transitionToState}', direct=${directMatch}, universal=${universalMatch}`);
               return directMatch || universalMatch;
             });
             
             console.log(`[${traceId}] Is valid transition: ${isValidTransition}`);
             
             if (!isValidTransition) {
-              console.log(`[${traceId}] Error: Invalid state transition from ${existingTask.state_id} to ${state_id}`);
-              throw new ValidationError('Invalid state transition according to workflow rules', 400, traceId);
+              console.log(`[${traceId}] Invalid state transition from '${fromStateStr}' to '${toStateStr}'`);
+              
+              // Provide helpful error message with available transitions
+              const availableTransitions = transitions
+                .filter((t: any) => t.from_state === fromStateStr || t.from_state === null)
+                .map((t: any) => t.to_state)
+                .filter(Boolean);
+              
+              const errorMessage = availableTransitions.length > 0
+                ? `Invalid state transition. Available transitions from current state: ${availableTransitions.join(', ')}`
+                : 'Invalid state transition. No valid transitions available from current state.';
+              
+              throw new ValidationError(errorMessage, 400, traceId);
             }
           } else {
-            console.log(`[${traceId}] Task type has no workflow, skipping transition validation`);
+            console.log(`[${traceId}] Task type has no workflow, allowing all state transitions`);
           }
         } else {
           console.log(`[${traceId}] State transition validation skipped: state_id=${state_id}, existing_state=${existingTask.state_id}, finalTaskTypeId=${finalTaskTypeId}`);

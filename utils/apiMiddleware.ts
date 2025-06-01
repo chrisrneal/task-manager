@@ -94,8 +94,7 @@ export function sendErrorResponse(
     ...(details && { details })
   };
   
-  console.log(`[${traceId}] Sending error response: ${status} - ${message}${details ? ` - ${details}` : ''}`);
-  console.log(`[${traceId}] Response body: ${JSON.stringify(response)}`);
+  console.log(`[${traceId}] Sending error response: ${status} - ${message}${details ? ` (${details})` : ''}`);
   
   // Check if response has already been sent
   if (res.headersSent) {
@@ -164,18 +163,13 @@ export function validateRequiredParams(
   res: NextApiResponse,
   traceId: string
 ): boolean {
-  console.log(`[${traceId}] validateRequiredParams called with:`, Object.keys(params));
-  
   for (const [key, value] of Object.entries(params)) {
-    console.log(`[${traceId}] Checking param ${key}: ${value} (type: ${typeof value})`);
     if (!value || (typeof value === 'string' && value.trim() === '')) {
-      console.log(`[${traceId}] Validation failed for param ${key}: value is empty`);
+      console.log(`[${traceId}] Validation failed: ${key} is required`);
       sendErrorResponse(res, 400, `${key} is required`, traceId);
       return false;
     }
   }
-  
-  console.log(`[${traceId}] All required params validation passed`);
   return true;
 }
 
