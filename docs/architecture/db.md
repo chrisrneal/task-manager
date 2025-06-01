@@ -6,6 +6,58 @@ The Task Manager application uses a PostgreSQL database via Supabase with the fo
 
 ```mermaid
 erDiagram
+    users {
+        uuid id PK
+        string email UK
+        string display_name
+        string first_name
+        string last_name
+        string avatar_url
+        string phone
+        string timezone
+        string locale
+        boolean email_verified
+        boolean is_active
+        timestamp last_login_at
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    organizations {
+        uuid id PK
+        string name
+        string slug UK
+        string description
+        string domain
+        string logo_url
+        string website_url
+        string billing_email
+        string phone
+        string address_line1
+        string address_line2
+        string city
+        string state_province
+        string postal_code
+        string country
+        string timezone
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    user_organizations {
+        uuid id PK
+        uuid user_id FK
+        uuid organization_id FK
+        string role
+        boolean is_primary
+        uuid invited_by FK
+        timestamp invited_at
+        timestamp joined_at
+        timestamp created_at
+        timestamp updated_at
+    }
+    
     projects {
         uuid id PK
         string name
@@ -109,6 +161,14 @@ erDiagram
         string value
     }
     
+    users ||--o{ user_organizations : "belongs to"
+    organizations ||--o{ user_organizations : "has members"
+    users ||--o{ projects : "owns"
+    users ||--o{ project_members : "member of"
+    users ||--o{ tasks : "owns"
+    users ||--o{ subtasks : "owns"
+    user_organizations }o--|| users : "user"
+    user_organizations }o--|| organizations : "organization"
     projects ||--o{ project_members : "has many"
     projects ||--o{ tasks : "has many"
     tasks ||--o{ subtasks : "has many"
@@ -133,6 +193,9 @@ erDiagram
 
 ## Relationships
 
+- A **user** can belong to multiple **organizations** through the **user_organizations** table
+- An **organization** can have many **users** as members with different roles
+- A **user** can own multiple **projects** and be a member of many projects
 - A **project** belongs to a user and can have many tasks, project states, workflows, and task types
 - A **project** can have many **project members** with different roles (owner, admin, member)
 - A **project state** belongs to a project and can be used in multiple workflow steps and workflow transitions
@@ -147,6 +210,27 @@ erDiagram
 ## Row-Level Security (RLS)
 
 All tables implement Row-Level Security with the following policies:
+
+### Users Table RLS
+
+- **SELECT**: Allowed when `auth.uid() = id` (own profile) OR user shares organizations OR role = `admin`
+- **UPDATE**: Allowed when `auth.uid() = id` (own profile) OR role = `admin`
+- **INSERT**: Allowed when `auth.uid() = id` (self-registration) OR role = `admin`
+- **DELETE**: Soft delete via `is_active` flag, controlled by application logic
+
+### Organizations Table RLS
+
+- **SELECT**: Allowed when user is a member of the organization OR role = `admin`
+- **UPDATE**: Allowed when user has 'owner' or 'admin' role in the organization OR role = `admin`
+- **INSERT**: Controlled by application logic for organization creation
+- **DELETE**: Soft delete via `is_active` flag, owners only
+
+### User Organizations Table RLS
+
+- **SELECT**: Allowed when `auth.uid() = user_id` OR user is member of same organization OR role = `admin`
+- **INSERT**: Allowed when user has 'owner' or 'admin' role in the target organization OR role = `admin`
+- **UPDATE**: Allowed when user has 'owner' role in the organization (for role changes) OR role = `admin`
+- **DELETE**: Allowed when user has 'owner' role in the organization OR role = `admin`
 
 ### Projects Table RLS
 
@@ -289,3 +373,7 @@ CREATE POLICY project_update_policy ON projects
     OR auth.jwt() ->> 'role' = 'admin'
   );
 ```
+
+## Related Documentation
+
+- [Users and Organizations Design](./users-organizations.md) - Detailed design for user management and organizational structure
