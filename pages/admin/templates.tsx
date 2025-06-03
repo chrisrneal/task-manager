@@ -18,7 +18,10 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { ProjectTemplateWithDetails } from '../../types/database';
+import { useAuth } from '../../components/AuthContext';
+import { supabase } from '../../utils/supabaseClient';
 
 interface TemplateFormData {
   name: string;
@@ -47,6 +50,8 @@ const defaultFormData: TemplateFormData = {
 };
 
 export default function AdminTemplates() {
+  const { user, loading: authLoading, isAdmin } = useAuth();
+  const router = useRouter();
   const [templates, setTemplates] = useState<ProjectTemplateWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,13 +60,33 @@ export default function AdminTemplates() {
   const [formData, setFormData] = useState<TemplateFormData>(defaultFormData);
   const [submitting, setSubmitting] = useState(false);
 
+  // Auth protection
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    if (!authLoading && !user) {
+      router.replace('/login');
+      return;
+    }
+    if (!authLoading && user && !isAdmin) {
+      router.replace('/projects');
+      return;
+    }
+  }, [user, authLoading, isAdmin, router]);
+
+  useEffect(() => {
+    if (user && isAdmin) {
+      fetchTemplates();
+    }
+  }, [user, isAdmin]);
 
   const fetchTemplates = async () => {
     try {
-      const token = localStorage.getItem('supabase.auth.token');
+      setLoading(true);
+      setError(null);
+      
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
       if (!token) {
         setError('Authentication required');
         return;
@@ -90,7 +115,10 @@ export default function AdminTemplates() {
   const handleCreateTemplate = async (templateData: TemplateFormData) => {
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('supabase.auth.token');
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -126,7 +154,10 @@ export default function AdminTemplates() {
     }
 
     try {
-      const token = localStorage.getItem('supabase.auth.token');
+      // Get the session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -182,7 +213,7 @@ export default function AdminTemplates() {
     });
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-6xl mx-auto">
@@ -191,6 +222,14 @@ export default function AdminTemplates() {
         </div>
       </div>
     );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login
+  }
+
+  if (!isAdmin) {
+    return null; // Will redirect to projects
   }
 
   if (error) {
