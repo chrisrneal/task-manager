@@ -263,11 +263,76 @@ The workflow system is implemented with:
 
 ## Getting started
 
-1. Clone the repository
-2. Install dependencies with `npm install`
-3. Set up your Supabase environment variables
-4. Run the development server with `npm run dev`
-5. Visit `http://localhost:3000` to see the app
+### Prerequisites
+
+- Node.js 18+ and npm
+- A [Supabase](https://supabase.com/) account and project
+
+### Setup Steps
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/chrisrneal/task-manager.git
+   cd task-manager
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up Supabase**
+   
+   a. Create a new project at [supabase.com](https://supabase.com/)
+   
+   b. Copy the environment variables:
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   c. Update `.env.local` with your Supabase credentials:
+   - `NEXT_PUBLIC_SUPABASE_URL`: Your project URL from Settings > API
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your anon/public key from Settings > API
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your service role key from Settings > API (required for admin features)
+
+4. **Run database migrations**
+   
+   Apply the migrations from the `supabase/migrations` folder to your Supabase project using the Supabase CLI or dashboard.
+
+5. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+6. **Visit the app**
+   
+   Open [http://localhost:3000](http://localhost:3000) to see the application.
+
+### First Time Setup
+
+1. **Register an account** through the app's registration page
+2. **Create your first project** to start managing tasks
+3. **Set up admin access** (optional) for template management:
+   ```bash
+   node scripts/setup-admin.js your-email@example.com
+   ```
+
+### Troubleshooting
+
+**Authentication Error**: If you get "authentication error" when trying to login:
+- Verify your `.env.local` file has the correct Supabase URL and keys
+- Make sure you've created a Supabase project and copied the real credentials
+- Check that your Supabase project is active and not paused
+
+**Can't Login**: Ensure you've:
+- Created a user account through the registration page first
+- Applied the database migrations to your Supabase project
+- Set up the environment variables correctly
+
+**Admin Features Not Working**: 
+- Run the admin setup script: `node scripts/setup-admin.js your-email@example.com`
+- Include the `SUPABASE_SERVICE_ROLE_KEY` in your `.env.local`
+- Log out and back in after being promoted to admin
 
 ## Admin Setup
 
