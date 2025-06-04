@@ -22,6 +22,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Page from '@/components/page';
 import Section from '@/components/section';
+import AdminNav from '@/components/AdminNav';
 import { ProjectTemplateWithDetails } from '../../types/database';
 import { Organization, UserOrganization } from '../../types/database';
 import { useAuth } from '../../components/AuthContext';
@@ -260,6 +261,11 @@ export default function AdminTemplates() {
   return (
     <Page title="Template Management">
       <Section>
+        {/* Admin Navigation */}
+        <div className="mb-6">
+          <AdminNav />
+        </div>
+
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
