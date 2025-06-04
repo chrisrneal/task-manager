@@ -243,8 +243,8 @@ const TemplateFieldsSettings = () => {
               name: editForm.name,
               input_type: editForm.input_type,
               is_required: editForm.is_required,
-              default_value: editForm.default_value || null,
-              options: editForm.options.length > 0 ? editForm.options : null
+              default_value: editForm.default_value || undefined,
+              options: editForm.options.length > 0 ? editForm.options : undefined
             }
           : field
       ));
