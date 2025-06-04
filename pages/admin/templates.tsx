@@ -23,6 +23,7 @@ import Link from 'next/link';
 import Page from '@/components/page';
 import Section from '@/components/section';
 import { ProjectTemplateWithDetails } from '../../types/database';
+import { Organization, UserOrganization } from '../../types/database';
 import { useAuth } from '../../components/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
 
@@ -47,6 +48,8 @@ export default function AdminTemplates() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<TemplateFormData>(defaultFormData);
   const [submitting, setSubmitting] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [orgLoading, setOrgLoading] = useState(true);
 
   // Auth protection
   useEffect(() => {
@@ -65,6 +68,27 @@ export default function AdminTemplates() {
       fetchTemplates();
     }
   }, [user, isAdmin]);
+
+  // Fetch admin's primary organization
+  useEffect(() => {
+    const fetchPrimaryOrg = async () => {
+      if (!user) return;
+      setOrgLoading(true);
+      const { data, error } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('is_primary', true)
+        .single();
+      if (data && data.organization_id) {
+        setOrganizationId(data.organization_id);
+      } else {
+        setOrganizationId(null);
+      }
+      setOrgLoading(false);
+    };
+    if (user) fetchPrimaryOrg();
+  }, [user]);
 
   const fetchTemplates = async () => {
     try {
@@ -106,16 +130,18 @@ export default function AdminTemplates() {
       // Get the session token
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      
       if (!token) {
         throw new Error('Authentication required');
       }
-
+      if (!organizationId) {
+        throw new Error('No primary organization found.');
+      }
       // Create basic template structure with default states, workflows, and task types
       const basicTemplateData = {
         name: templateData.name,
         description: templateData.description,
         icon: templateData.icon,
+        organization_id: organizationId, // <-- include org
         states: [
           { name: 'To Do', position: 0 },
           { name: 'In Progress', position: 1 },
@@ -125,7 +151,6 @@ export default function AdminTemplates() {
         task_types: [{ name: 'Task', workflow_id: 'Default Workflow' }],
         fields: []
       };
-
       const response = await fetch('/api/templates', {
         method: 'POST',
         headers: {
@@ -134,12 +159,10 @@ export default function AdminTemplates() {
         },
         body: JSON.stringify(basicTemplateData)
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
-
       await fetchTemplates();
       setShowForm(false);
       setFormData(defaultFormData);
@@ -196,6 +219,18 @@ export default function AdminTemplates() {
         <Section>
           <div className="text-center py-10">
             <p className="text-zinc-600 dark:text-zinc-400">Loading templates...</p>
+          </div>
+        </Section>
+      </Page>
+    );
+  }
+
+  if (orgLoading) {
+    return (
+      <Page title="Template Management">
+        <Section>
+          <div className="text-center py-10">
+            <p className="text-zinc-600 dark:text-zinc-400">Loading organization...</p>
           </div>
         </Section>
       </Page>
