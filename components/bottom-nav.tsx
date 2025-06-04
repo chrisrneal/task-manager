@@ -1,14 +1,18 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { useAuth } from '@/components/AuthContext'
 
 const BottomNav = () => {
 	const router = useRouter()
+	const { isAdmin } = useAuth()
+
+	const allLinks = isAdmin ? [...links, adminLink] : links
 
 	return (
 		<div className='sm:hidden'>
 			<nav className='fixed bottom-0 w-full border-t bg-zinc-100 pb-safe dark:border-zinc-800 dark:bg-zinc-900'>
 				<div className='mx-auto flex h-16 max-w-md items-center justify-around px-6'>
-					{links.map(({ href, label, icon }) => (
+					{allLinks.map(({ href, label, icon }) => (
 						<Link
 							key={label}
 							href={href}
@@ -70,3 +74,22 @@ const links = [
 		),
 	},
 ]
+
+const adminLink = {
+	label: 'Admin',
+	href: '/admin/templates',
+	icon: (
+		<svg
+			viewBox='0 0 15 15'
+			fill='none'
+			xmlns='http://www.w3.org/2000/svg'
+			width='18'
+			height='18'
+		>
+			<path
+				d='M5.5 3A2.5 2.5 0 003 5.5v.5H2v1h1v4.5A2.5 2.5 0 005.5 14h4a2.5 2.5 0 002.5-2.5V7h1V6h-1v-.5A2.5 2.5 0 009.5 3h-4zM4 5.5A1.5 1.5 0 015.5 4h4A1.5 1.5 0 0111 5.5V6H4v-.5zM4 7h7v4.5A1.5 1.5 0 019.5 13h-4A1.5 1.5 0 014 11.5V7z'
+				fill='currentColor'
+			/>
+		</svg>
+	),
+}

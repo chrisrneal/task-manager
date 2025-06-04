@@ -1,0 +1,92 @@
+{
+  "name": "Kanban Board Template",
+  "description": "A simple Kanban template with basic workflow states for continuous delivery teams",
+  "icon": "📋",
+  "states": [
+    {
+      "name": "Backlog",
+      "position": 1
+    },
+    {
+      "name": "To Do",
+      "position": 2
+    },
+    {
+      "name": "In Progress",
+      "position": 3
+    },
+    {
+      "name": "Code Review",
+      "position": 4
+    },
+    {
+      "name": "Testing",
+      "position": 5
+    },
+    {
+      "name": "Deployed",
+      "position": 6
+    },
+    {
+      "name": "Done",
+      "position": 7
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Kanban Workflow"
+    }
+  ],
+  "task_types": [
+    {
+      "name": "Feature",
+      "workflow_id": "Kanban Workflow"
+    },
+    {
+      "name": "Bug Fix",
+      "workflow_id": "Kanban Workflow"
+    },
+    {
+      "name": "Improvement",
+      "workflow_id": "Kanban Workflow"
+    },
+    {
+      "name": "Technical Debt",
+      "workflow_id": "Kanban Workflow"
+    }
+  ],
+  "fields": [
+    {
+      "name": "Complexity",
+      "input_type": "select",
+      "is_required": false,
+      "options": ["XS", "S", "M", "L", "XL"],
+      "default_value": "M"
+    },
+    {
+      "name": "Component",
+      "input_type": "select",
+      "is_required": false,
+      "options": ["Frontend", "Backend", "Database", "Infrastructure", "Documentation"],
+      "default_value": "Frontend"
+    },
+    {
+      "name": "Labels",
+      "input_type": "text",
+      "is_required": false,
+      "default_value": ""
+    },
+    {
+      "name": "Blocked",
+      "input_type": "checkbox",
+      "is_required": false,
+      "default_value": "false"
+    },
+    {
+      "name": "Blocker Reason",
+      "input_type": "textarea",
+      "is_required": false,
+      "default_value": ""
+    }
+  ]
+}
