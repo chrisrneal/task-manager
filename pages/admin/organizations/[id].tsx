@@ -33,6 +33,9 @@ interface UserSelectOption {
   id: string;
   email: string;
   display_name: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
 }
 
 export default function OrganizationDetail() {
@@ -130,22 +133,22 @@ export default function OrganizationDetail() {
       
       if (!token) return;
 
-      // Get all users who are not already in any organization
-      const { data: users, error } = await supabase
-        .from('users')
-        .select('id, email, display_name')
-        .eq('is_active', true);
+      // Fetch users who can be added to this organization (excluding current members)
+      const response = await fetch(`/api/users?active_only=true&organization_id=${id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (error) {
-        console.error('Error fetching users:', error);
+      if (!response.ok) {
+        console.error('Failed to fetch available users');
         return;
       }
 
-      // Filter out users who already have an organization membership
-      const memberUserIds = memberships.map(m => m.user_id);
-      const available = users?.filter(u => !memberUserIds.includes(u.id)) || [];
-      
-      setAvailableUsers(available);
+      const userData = await response.json();
+      setAvailableUsers(userData.users || []);
     } catch (err) {
       console.error('Error fetching available users:', err);
     }
