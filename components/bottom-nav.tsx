@@ -73,6 +73,24 @@ const links = [
 			</svg>
 		),
 	},
+	{
+		label: 'Profile',
+		href: '/profile',
+		icon: (
+			<svg
+				viewBox='0 0 15 15'
+				fill='none'
+				xmlns='http://www.w3.org/2000/svg'
+				width='18'
+				height='18'
+			>
+				<path
+					d='M7.5 0a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM2 13.5A5.5 5.5 0 017.5 8H7.5a5.5 5.5 0 015.5 5.5v1H2v-1z'
+					fill='currentColor'
+				/>
+			</svg>
+		),
+	},
 ]
 
 const adminLink = {
