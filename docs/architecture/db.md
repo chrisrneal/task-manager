@@ -377,3 +377,4 @@ CREATE POLICY project_update_policy ON projects
 ## Related Documentation
 
 - [Users and Organizations Design](./users-organizations.md) - Detailed design for user management and organizational structure
+- [User Profile Fields Analysis](./user-profile-fields.md) - Comprehensive analysis and justification of user profile fields

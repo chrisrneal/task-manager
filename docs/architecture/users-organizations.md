@@ -319,3 +319,7 @@ FROM new_org;
 - **Permissions**: Granular permission system beyond simple roles
 - **User preferences**: Extended user settings and preferences
 - **Organization hierarchies**: Parent/child organization relationships
+
+## Related Documentation
+
+- [User Profile Fields Analysis](./user-profile-fields.md) - Comprehensive analysis and justification of user profile fields, including privacy and functional considerations
