@@ -242,6 +242,14 @@ export default function OrganizationDetail() {
     }
   };
 
+  // Log app_metadata for debugging
+  useEffect(() => {
+    if (user) {
+      // eslint-disable-next-line no-console
+      console.log('User app_metadata:', user.app_metadata);
+    }
+  }, [user]);
+
   if (!user || !isAdmin) {
     return null;
   }
