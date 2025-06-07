@@ -38,7 +38,7 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({
     const isPast = stateIndex < currentStateIndex;
     const isFuture = stateIndex > currentStateIndex;
 
-    let baseClasses = 'flex-1 text-center py-2 px-1 text-xs font-medium relative transition-colors duration-200';
+    let baseClasses = 'flex-1 text-center py-2 px-1 text-xs font-medium relative transition-colors duration-200 min-w-0';
     
     if (isCurrent) {
       // Current state - highlighted with accent color
@@ -87,7 +87,7 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({
                   <span className="text-white" aria-hidden="true">✓</span>
                 )}
                 {/* State number/indicator */}
-                <span className="truncate">
+                <span className="truncate max-w-full block">
                   {state.name}
                 </span>
               </div>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Page from '@/components/page';
 import Section from '@/components/section';
 import TaskForm from '@/components/TaskForm';
+import TaskProgressBar from '@/components/TaskProgressBar';
 import { KanbanView } from '@/components/kanban';
 import { useAuth } from '@/components/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
@@ -445,6 +446,36 @@ const ProjectDetail = () => {
     }
   };
 
+  // Get workflow states for a task based on its task type
+  const getWorkflowStatesForTask = (task: Task): ProjectState[] => {
+    if (!task.task_type_id) return [];
+    
+    const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
+    if (!taskType) return [];
+
+    // Get the workflow steps for this task type's workflow
+    const workflowStepsForType = workflowSteps.filter(ws => ws.workflow_id === taskType.workflow_id);
+    
+    // Get the states in the order defined by the workflow steps
+    const orderedStates = workflowStepsForType
+      .sort((a, b) => a.step_order - b.step_order)
+      .map(ws => states.find(s => s.id === ws.state_id))
+      .filter(Boolean) as ProjectState[];
+
+    // If no workflow steps found, fall back to all states (for backwards compatibility)
+    return orderedStates.length > 0 ? orderedStates : states;
+  };
+
+  // Get workflow transitions for a task based on its task type
+  const getWorkflowTransitionsForTask = (task: Task): WorkflowTransition[] => {
+    if (!task.task_type_id) return [];
+    
+    const taskType = taskTypes.find(tt => tt.id === task.task_type_id);
+    if (!taskType) return [];
+
+    return workflowTransitions.filter(wt => wt.workflow_id === taskType.workflow_id);
+  };
+
   // Group tasks by state
   const groupTasksByState = () => {
     if (states.length === 0) return {};
@@ -866,18 +897,9 @@ const ProjectDetail = () => {
                         </th>
                         <th 
                           scope="col" 
-                          className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
-                          onClick={() => handleSort('status')}
-                          aria-sort={sortField === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                          className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider"
                         >
-                          <div className="flex items-center">
-                            <span>Status</span>
-                            {sortField === 'status' && (
-                              <span className="ml-1" aria-hidden="true">
-                                {sortDirection === 'asc' ? '↑' : '↓'}
-                              </span>
-                            )}
-                          </div>
+                          <span>Progress</span>
                         </th>
                         <th 
                           scope="col" 
@@ -953,10 +975,21 @@ const ProjectDetail = () => {
                                   </div>
                                 )}
                               </td>
-                              <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-zinc-300">
-                                  {statusName}
-                                </span>
+                              <td className="px-3 sm:px-6 py-4">
+                                <div className="min-w-[200px]">
+                                  {task.state_id && task.task_type_id ? (
+                                    <TaskProgressBar
+                                      currentStateId={task.state_id}
+                                      workflowStates={getWorkflowStatesForTask(task)}
+                                      workflowTransitions={getWorkflowTransitionsForTask(task)}
+                                      className="text-xs"
+                                    />
+                                  ) : (
+                                    <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-zinc-300">
+                                      {statusName || 'No Status'}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
                                 {(() => {
