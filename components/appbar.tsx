@@ -60,22 +60,25 @@ const Appbar = () => {
 							</div>
 						</div>
 
-						<div
-							title='Gluten Free'
-							className='h-10 w-10 rounded-full bg-zinc-200 bg-cover bg-center shadow-inner dark:bg-zinc-800'
-							style={{
-								backgroundImage:
-									'url(https://images.unsplash.com/photo-1612480797665-c96d261eae09?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80)',
-							}}
+						{user && (
+							<Link
+								href='/profile'
+								title='Profile'
+								className='h-10 w-10 rounded-full bg-zinc-200 bg-cover bg-center shadow-inner dark:bg-zinc-800 hover:ring-2 hover:ring-indigo-500 transition-all'
+								style={{
+									backgroundImage:
+										'url(https://images.unsplash.com/photo-1612480797665-c96d261eae09?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80)',
+								}}
 							/>
-							{user && (
-								<button
-									onClick={handleLogout}
-									className='text-sm px-3 py-1 rounded bg-zinc-800 text-white hover:bg-zinc-700'
-								>
-									Logout
-								</button>
-							)}
+						)}
+						{user && (
+							<button
+								onClick={handleLogout}
+								className='text-sm px-3 py-1 rounded bg-zinc-800 text-white hover:bg-zinc-700'
+							>
+								Logout
+							</button>
+						)}
 					</nav>
 				</div>
 			</header>
