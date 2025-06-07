@@ -51,6 +51,7 @@ export default function ProfilePage() {
     display_name: '',
     first_name: '',
     last_name: '',
+    avatar_url: '',
     phone: '',
     timezone: 'UTC',
     locale: 'en'
@@ -97,6 +98,7 @@ export default function ProfilePage() {
           display_name: data.profile.display_name || '',
           first_name: data.profile.first_name || '',
           last_name: data.profile.last_name || '',
+          avatar_url: data.profile.avatar_url || '',
           phone: data.profile.phone || '',
           timezone: data.profile.timezone || 'UTC',
           locale: data.profile.locale || 'en'
@@ -122,6 +124,36 @@ export default function ProfilePage() {
     // Clear messages when user starts editing
     if (error) setError(null);
     if (successMessage) setSuccessMessage(null);
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Validate file
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        throw new Error('Avatar image must be less than 2MB');
+      }
+
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select an image file');
+      }
+
+      // Convert to base64 for preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setFormData(prev => ({
+          ...prev,
+          avatar_url: result
+        }));
+      };
+      reader.readAsDataURL(file);
+
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   const handleSave = async () => {
@@ -177,6 +209,7 @@ export default function ProfilePage() {
       display_name: profile.display_name || '',
       first_name: profile.first_name || '',
       last_name: profile.last_name || '',
+      avatar_url: profile.avatar_url || '',
       phone: profile.phone || '',
       timezone: profile.timezone || 'UTC',
       locale: profile.locale || 'en'
@@ -248,14 +281,30 @@ export default function ProfilePage() {
           <div className="p-6">
             {/* Avatar Section */}
             <div className="flex items-center mb-8">
-              <div
-                className="h-16 w-16 rounded-full bg-zinc-200 bg-cover bg-center shadow-inner dark:bg-zinc-700"
-                style={{
-                  backgroundImage: profile?.avatar_url
-                    ? `url(${profile.avatar_url})`
-                    : 'url(https://images.unsplash.com/photo-1612480797665-c96d261eae09?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80)',
-                }}
-              />
+              <div className="relative">
+                <div
+                  className="h-16 w-16 rounded-full bg-zinc-200 bg-cover bg-center shadow-inner dark:bg-zinc-700"
+                  style={{
+                    backgroundImage: (isEditing ? formData.avatar_url : profile?.avatar_url)
+                      ? `url(${isEditing ? formData.avatar_url : profile?.avatar_url})`
+                      : 'url(https://images.unsplash.com/photo-1612480797665-c96d261eae09?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80)',
+                  }}
+                />
+                {isEditing && (
+                  <label htmlFor="avatar-upload" className="absolute -bottom-1 -right-1 h-6 w-6 bg-indigo-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-indigo-700 transition-colors">
+                    <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                  </label>
+                )}
+              </div>
               <div className="ml-4">
                 <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
                   {profile?.display_name || 'User'}
@@ -267,6 +316,11 @@ export default function ProfilePage() {
                   <span className="inline-block px-2 py-1 text-xs bg-green-100 text-green-800 rounded mt-1">
                     Email Verified
                   </span>
+                )}
+                {isEditing && (
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                    Click the + button to change avatar
+                  </p>
                 )}
               </div>
             </div>
