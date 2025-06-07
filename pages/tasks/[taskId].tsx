@@ -2,7 +2,8 @@ import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/utils/supabaseClient'
 import TaskForm from '@/components/TaskForm'
-import { Task, TaskFieldValue, TaskWithFieldValues, TaskType, ProjectMemberWithUser } from '@/types/database'
+import TaskProgressBar from '@/components/TaskProgressBar'
+import { Task, TaskFieldValue, TaskWithFieldValues, TaskType, ProjectMemberWithUser, ProjectState, WorkflowTransition } from '@/types/database'
 
 export default function TaskDetail() {
 	const router = useRouter()
@@ -12,7 +13,8 @@ export default function TaskDetail() {
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [taskTypes, setTaskTypes] = useState<TaskType[]>([])
-	const [workflowStates, setWorkflowStates] = useState<{ id: string, name: string }[]>([])
+	const [workflowStates, setWorkflowStates] = useState<ProjectState[]>([])
+	const [workflowTransitions, setWorkflowTransitions] = useState<WorkflowTransition[]>([])
 	const [validNextStates, setValidNextStates] = useState<string[]>([])
 	const [isEditing, setIsEditing] = useState(false)
 	const [projectMembers, setProjectMembers] = useState<ProjectMemberWithUser[]>([])
@@ -96,10 +98,7 @@ export default function TaskDetail() {
 						.eq('project_id', data.project_id)
 
 					if (statesError) throw statesError
-					setWorkflowStates(statesData.map(state => ({
-						id: state.id,
-						name: state.name
-					})) || [])
+					setWorkflowStates(statesData || [])
 
 					// Fetch project members
 					await fetchProjectMembers(data.project_id)
@@ -123,6 +122,7 @@ export default function TaskDetail() {
 								.eq('workflow_id', taskType.workflow_id)
 
 							if (transitionsError) throw transitionsError
+							setWorkflowTransitions(transitions || [])
 
 							// Get the valid next states based on the current state
 							const validStates = transitions
@@ -254,6 +254,19 @@ export default function TaskDetail() {
 			</div>
 			
 			<div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 overflow-auto max-h-[calc(100vh-8rem)]'>
+				{/* Progress Bar */}
+				{workflowStates.length > 0 && task.state_id && (
+					<div className="mb-6">
+						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Workflow Progress</h3>
+						<TaskProgressBar
+							currentStateId={task.state_id}
+							workflowStates={workflowStates}
+							workflowTransitions={workflowTransitions}
+							className="mb-4"
+						/>
+					</div>
+				)}
+				
 				<TaskForm
 					mode="view"
 					projectId={task.project_id}
@@ -262,7 +275,7 @@ export default function TaskDetail() {
 					initialValues={taskWithFieldValues}
 					validNextStates={validNextStates}
 					taskTypes={taskTypes}
-					workflowStates={workflowStates}
+					workflowStates={workflowStates.map(state => ({ id: state.id, name: state.name }))}
 					onSubmit={handleTaskFormSubmit}
 					onCancel={handleTaskFormCancel}
 					allowEditing={isEditing}
