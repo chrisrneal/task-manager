@@ -13,3 +13,7 @@ node_modules
 
 # Test results
 test-results/
+
+# Test scripts and validation files
+test-*.js
+validate-*.js
